@@ -1,17 +1,67 @@
 ---
 name: okr-alignment-check
-description: Check whether the current task, role work, or recent changes align with upper-level OKR and Boss OKR.
+description: Check whether the current task, role work, or recent changes align with upper-level OKR and GM OKR.
 ---
 
 # OKR Alignment Check
 
+## 输入参数
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| task | string | 是 | 当前任务描述 |
+
+### 参数解析规则
+
+- 从用户消息中提取当前正在做或计划做的任务作为 `task`。
+- 如果用户未描述任务，尝试从最近的 git diff 或文件变更推断。
+- 推断失败则提示用户："请描述你当前正在做的任务"。
+- 示例：`检查一下"实现用户注册接口"是否对齐 OKR` → task = `"实现用户注册接口"`
+- 示例：`我在加一个导出功能，看看是否偏离` → task = `"加一个导出功能"`
+
+## 前置条件
+
+- 需要：已确认的 GM OKR（`.okr/active.md` 中存在 `## GM OKR` 区块）。
+- 需要：当前任务描述（用户输入或从上下文推断）。
+- 缺失处理：
+  - 缺少 GM OKR → 提示先运行 `okr-gm`。
+  - 未描述当前任务 → 提示用户说明正在做什么，或尝试从最近的文件变更推断。
+
+## 前置读取
+
+- 读取 `.okr/active.md`。
+  - 文件不存在 → 提示用户先运行 `okr-gm` 建立 GM OKR。
+  - 缺少 `## GM OKR` 区块 → 提示 GM OKR 尚未生成。
+- 从 `## GM OKR` 提取所有 GM KR。
+- 从 `## 层级 OKR` 提取角色 KR 及上级映射（如有）。
+- 读取用户描述的当前任务，或从最近的 git diff / 文件变更中推断当前任务。
+
 ## 执行规则
 
 - 用户可主动触发，也可在任务变化时触发。
-- 比较当前任务与上级 OKR、Boss OKR 的关系。
+- 比较当前任务与上级 OKR、GM OKR 的关系。
 - 输出对齐、部分对齐或偏离。
 - 偏离时给出继续、调整 OKR、放弃任务三种建议。
 - 不清楚上级映射时必须提示补齐映射。
+
+## 执行步骤
+
+1. 确定当前任务：
+   - 用户明确描述 → 直接使用。
+   - 用户未描述 → 尝试从最近的 git diff 或文件变更推断。
+   - 无法推断 → 提示用户描述当前任务。
+2. 建立映射链路：
+   - 当前任务 → 最相关的角色 KR → 上级 KR → GM KR。
+   - 如果无法找到映射 → 标记为"无映射"。
+3. 评估对齐程度：
+   - **对齐**：当前任务直接贡献某个角色 KR，且该 KR 映射到 GM KR。
+   - **部分对齐**：当前任务与某个 GM KR 相关，但不在已定义的角色 KR 范围内。
+   - **偏离**：当前任务与所有 GM KR 无关。
+4. 生成建议：
+   - 对齐 → 继续执行，无需调整。
+   - 部分对齐 → 说明对齐点和偏离点，建议收窄范围或补充角色 KR。
+   - 偏离 → 给出三个选项：继续（说明风险）、调整 OKR（补充新 KR）、放弃任务。
+5. 输出对齐结论。
 
 ## 输出格式
 
@@ -25,3 +75,16 @@ description: Check whether the current task, role work, or recent changes align 
 - 对齐点
 - 偏离点
 - 建议
+
+## 异常处理
+
+- 层级 OKR 尚未生成（只有 GM OKR）：直接与 GM KR 比对，跳过角色 KR 层。
+- 当前任务涉及多个角色：分别评估每个角色的对齐情况，汇总结论。
+- 用户正在做的事不属于任何已定义角色的职责：提示可能需要补充角色或调整角色树。
+
+## 产出写入
+
+- 本技能以分析为主，默认不修改文件。
+- 如果检查结论为"偏离"且用户同意调整，则：
+  - 更新 `.okr/status.md` 中相关 KR 的状态或下一步。
+  - 更新 frontmatter：`last_updated`、`updated_by: okr-alignment-check`。

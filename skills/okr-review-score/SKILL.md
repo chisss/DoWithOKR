@@ -1,9 +1,24 @@
 ---
 name: okr-review-score
-description: Score DoWithOKR outcomes through upper-level reviews, evidence-based KR scoring, role results, and final Boss result.
+description: Score DoWithOKR outcomes through upper-level reviews, evidence-based KR scoring, role results, and final GM result.
 ---
 
 # OKR Review Score
+
+## 前置条件
+
+- 需要：已生成的状态看板和角色树（`.okr/status.md` 和 `.okr/active.md` 存在）。
+- 缺失处理：
+  - 缺少状态看板 → 提示先运行 `okr-planner`。
+  - 缺少角色树 → 提示先运行 `okr-role-splitter`。
+
+## 前置读取
+
+- 读取 `.okr/status.md`。
+  - 文件不存在 → 提示用户先运行 `okr-planner` 生成看板。
+- 读取 `.okr/active.md`，提取角色树和上下级关系（确定谁给谁评分）。
+- 读取 `.okr/evidence/` 目录下所有证据文件，汇总每个 KR 的证据清单。
+- 可选：读取 `.okr/reviews/` 目录，检查是否已有历史评分记录。
 
 ## 执行规则
 
@@ -11,7 +26,39 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - 评分采用上级给直接下级打分。
 - 评分必须绑定证据和差距说明。
 - 每个角色的 Objective 得分默认取 KR 平均分。
-- Boss 最终 R 由产品线 R、技术线 R、证据质量和甲方验收结论共同决定。
+- GM 最终 R 由产品线 R、技术线 R、证据质量和甲方验收结论共同决定。
+
+## 执行步骤
+
+1. 读取角色树，建立评分关系：
+   - GM 评分 PD 产品总监和 ArchD 技术总监。
+   - PD 产品总监评分 PM 产品经理、UI 设计师、TW 文档专家/DX。
+   - ArchD 技术总监评分 BE 后端、FE 前端、QA 测试、DevOps 发布、SEC 安全等技术角色。
+2. 读取每个角色 KR 的状态和证据：
+   - 从 `.okr/status.md` 获取状态和进展。
+   - 从 `.okr/evidence/{KR-ID}.md` 获取证据清单。
+   - 验证证据文件格式是否符合 `references/evidence-spec.md` 规范。
+3. 验证证据有效性（参考 `references/evidence-spec.md` 验证规则）：
+   - 交叉比对证据与 KR 验收标准，判断证据是否充分覆盖验收要求。
+   - 检查证据路径是否指向实际存在的文件（可疑证据降低可信度）。
+   - 检查证据类型与角色职责是否匹配（如 BE 后端开发工程师应有代码和测试证据）。
+   - 标记证据不足的 KR：状态为"已完成"但无证据 → 标记为"待验证"。
+   - 标记证据可疑的 KR：证据路径不存在或类型不匹配 → 提示需要补充。
+4. 为每个 KR 评分：
+   - 0.0：无进展，无证据。
+   - 0.3：有探索但未形成有效交付。
+   - 0.7：基本达成且证据可信。
+   - 1.0：完全达成并超过验收预期。
+   - 每个评分必须附带证据引用和差距说明。
+5. 汇总角色 Objective 得分：
+   - 每个角色 O 得分 = 其 KR 平均分。
+6. 汇总线级 R：
+   - 产品线 R = PD 产品总监 O 得分（含 PM、UI、TW 下级平均）。
+   - 技术线 R = ArchD 技术总监 O 得分（含 BE、FE、QA、DevOps、SEC 下级平均）。
+7. 计算 GM 最终 R：
+   - GM 最终 R = 产品线 R × 40% + 技术线 R × 60%。
+8. 生成复盘结论和下一轮建议。
+9. 写入评分记录。
 
 ## 输出格式
 
@@ -22,5 +69,20 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - OKR 评分复盘
 - 上级评分
 - 角色 R
-- Boss 最终 R
+- GM 最终 R
 - 下一轮建议
+
+## 异常处理
+
+- 某个 KR 无证据但状态为"已完成"：将评分标记为"待验证"，建议补充证据后重新评分。
+- 角色树中某个角色无任何 KR 执行记录：评分为 0.0，说明"未参与本轮交付"。
+- 用户对评分有异议：允许手动调整分数，但必须附带调整理由。
+
+## 产出写入
+
+- 创建 `.okr/reviews/<今天日期>.md`：
+  - 写入 frontmatter：`act: <当前交付幕>`、`last_updated`。
+  - 写入上级评分表、汇总和结论。
+- 更新 `.okr/status.md`：
+  - 将已评分 KR 的进展字段更新为评分分数。
+  - 更新 frontmatter：`last_updated`、`updated_by: okr-review-score`。

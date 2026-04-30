@@ -1,17 +1,66 @@
 ---
 name: okr-next-cycle
-description: Recommend the next DoWithOKR delivery act or next Boss OKR cycle after score review and final result summary.
+description: Recommend the next DoWithOKR delivery act or next GM OKR cycle after score review and final result summary.
 ---
 
 # OKR Next Cycle
 
+## 输入参数
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| focus | string | 否 | 用户指定的下一轮重点方向 |
+
+### 参数解析规则
+
+- 从用户消息中提取下一轮希望聚焦的方向作为 `focus`。
+- `focus` 缺省时，基于评分复盘中的低分/未完成 KR 自动推荐重点。
+- 用户指定 `focus` 时，优先围绕该方向生成建议，但仍校验与未完成 KR 的关联。
+- 示例：`进入下一轮，重点搞性能优化` → focus = `"性能优化"`
+- 示例：`下一轮怎么安排` → focus = 空（自动推荐）
+
+## 前置条件
+
+- 需要：至少一次评分复盘记录（`.okr/reviews/` 目录非空）。
+- 缺失处理：提示用户先运行 `okr-review-score` 完成评分复盘。
+
+## 前置读取
+
+- 读取 `.okr/reviews/` 目录，获取最近一次评分复盘记录。
+  - 目录不存在或为空 → 提示用户先运行 `okr-review-score`。
+- 读取 `.okr/status.md`，获取所有 KR 当前状态和进展。
+- 读取 `.okr/active.md`，获取 GM OKR 和当前交付幕。
+
 ## 执行规则
 
 - 必须基于复盘评分、证据缺口和甲方待确认问题生成建议。
-- 可以建议重复 M2 或 M3，也可以进入 M4 或开启下一轮 Boss OKR。
+- 可以建议重复 M2 或 M3，也可以进入 M4 或开启下一轮 GM OKR。
 - 下一轮重点必须映射到未完成或低分 KR。
 - 对需要甲方确认的问题必须单独列出。
 - 不得把下一轮建议当成用户已确认需求。
+
+## 执行步骤
+
+1. 读取最近一次评分复盘，提取：
+   - GM 最终 R 分数。
+   - 各角色 KR 评分。
+   - 未完成或低分（< 0.7）的 KR 列表。
+2. 读取 status.md，识别：
+   - 状态为"阻塞"的 KR 及阻塞原因。
+   - 状态为"未开始"的 KR（计划但未执行）。
+   - 证据缺失的 KR。
+3. 判断下一步方向：
+   - GM 最终 R ≥ 0.7 且无阻塞 → 建议进入 M4 收敛复盘幕或标记本轮完成。
+   - GM 最终 R < 0.7 但有明确缺口 → 建议重复 M3 构建验证幕，聚焦低分 KR。
+   - 方案层面有重大缺陷 → 建议回退到 M2 方案成型幕。
+   - 需求本身需要调整 → 建议开启新一轮 GM OKR。
+4. 生成下一轮重点清单：
+   - 每个重点映射到具体的未完成/低分 KR。
+   - 标注负责角色。
+5. 列出需要甲方确认的问题：
+   - 从 GM OKR 的"待确认"中提取未解决项。
+   - 从执行过程中新发现的需求变更。
+6. 输出建议，等待用户确认。
 
 ## 输出格式
 
@@ -24,3 +73,17 @@ description: Recommend the next DoWithOKR delivery act or next Boss OKR cycle af
 - 上级映射
 - 需要甲方确认
 - 风险提示
+
+## 异常处理
+
+- 所有 KR 都已完成且评分 ≥ 0.7：建议本轮 OKR 结束，输出最终交付总结。
+- 评分记录与 status.md 状态不一致：以评分记录为准，提示 status.md 可能未及时更新。
+- 用户要求跳过某些低分 KR：接受但标记为"放弃"，说明对 GM 最终 R 的影响。
+
+## 产出写入
+
+- 本技能以建议为主，默认不修改文件。
+- 如果用户确认进入下一轮，则：
+  - 更新 `.okr/active.md` frontmatter：`current_act` 更新为建议的交付幕。
+  - 更新 `last_updated`、`updated_by: okr-next-cycle`。
+  - 如果是开启全新 GM OKR 轮次，备份当前 `.okr/active.md` 为 `.okr/archive/<日期>-active.md`，然后重新初始化。
