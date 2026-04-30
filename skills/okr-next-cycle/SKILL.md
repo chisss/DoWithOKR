@@ -30,6 +30,7 @@ description: Recommend the next DoWithOKR delivery act or next GM OKR cycle afte
   - 目录不存在或为空 → 提示用户先运行 `okr-review-score`。
 - 读取 `.okr/status.md`，获取所有 KR 当前状态和进展。
 - 读取 `.okr/active.md`，获取 GM OKR 和当前交付幕。
+- 可选：读取 `.okr/wisdom/` 目录下所有角色 wisdom 文件，用于生成能力报告和基于历史经验推荐下一周期重点。
 
 ## 执行规则
 
@@ -60,7 +61,12 @@ description: Recommend the next DoWithOKR delivery act or next GM OKR cycle afte
 5. 列出需要甲方确认的问题：
    - 从 GM OKR 的"待确认"中提取未解决项。
    - 从执行过程中新发现的需求变更。
-6. 输出建议，等待用户确认。
+6. 生成能力报告（如 wisdom 文件存在）：
+   - 展示每个角色的成长趋势：已完成周期数、能力评级（★）、趋势箭头（↑→↓）。
+   - 能力评级基于历史评分平均值：≥ 0.8 → ★★★★★，≥ 0.7 → ★★★★☆，≥ 0.5 → ★★★☆☆，< 0.5 → ★★☆☆☆。
+   - 基于 wisdom 中的反思记录推荐下一周期的重点方向。
+   - 输出团队整体协作效率变化（如有跨周期数据）。
+7. 输出建议，等待用户确认。
 
 ## 输出格式
 
@@ -73,6 +79,7 @@ description: Recommend the next DoWithOKR delivery act or next GM OKR cycle afte
 - 上级映射
 - 需要甲方确认
 - 风险提示
+- 能力报告（如 wisdom 文件存在）
 
 ## 异常处理
 

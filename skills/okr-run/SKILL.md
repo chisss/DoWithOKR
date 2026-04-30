@@ -50,8 +50,8 @@ description: Run the full DoWithOKR workflow from client need to GM OKR, role tr
 | --- | --- | --- | --- | --- |
 | M0 | 用户确认 GM OKR | `active.md` 含 `## GM OKR` 且用户确认 | → M1 | 停留 M0，修改后重新确认 |
 | M1 | 所有 GM KR 有负责人 | `active.md` 含 `## 角色树` + `## 层级 OKR`；`status.md` 已创建 | → M2 | 停留 M1，提示补充角色或 KR 映射 |
-| M2 | 产品方案和技术方案明确 | PD 和 ArchD KR 状态 ≠ 未开始；用户确认方案 | → M3 | 停留 M2，继续执行方案角色 |
-| M3 | 关键 KR 有证据 | `status.md` 中 M3 阶段 KR 均有证据或标记为放弃 | → M4 | 停留 M3，列出缺失证据的 KR |
+| M2 | 产品方案和技术方案明确 | PD 和 ArchD KR 状态 ≠ 未开始；`active.md` 含 `## 交付验证计划`；用户确认方案 | → M3 | 停留 M2，继续执行方案角色 |
+| M3 | 关键 KR 有证据且自检达标 | `status.md` 中 M3 阶段 KR 均有证据或标记为放弃；角色自检结果达标 | → M4 | 停留 M3，列出缺失证据和未达标的 KR |
 | M4 | 评分和复盘完整 | `reviews/` 下存在评分文件；用户确认最终 R | → 完成 | 停留 M4，补充评分 |
 
 ### 子技能调用序列
@@ -61,7 +61,7 @@ description: Run the full DoWithOKR workflow from client need to GM OKR, role tr
 | M0 | `okr-gm` | GM OKR 确认 |
 | M1 | `okr-role-splitter` → `okr-planner` | 无（自动流转） |
 | M2 | `okr-execution-plan` → `okr-role-run(PD)` → `okr-role-run(PM)` → `okr-role-run(UI)` → `okr-role-run(ArchD)` → `okr-status-tracker` | 方案确认 |
-| M3 | `okr-role-run(BE)` → `okr-role-run(FE)` → `okr-role-run(QA)` → `okr-role-run(DevOps)` → `okr-role-run(SEC)` → `okr-role-run(TW)` → `okr-alignment-check` → `okr-status-tracker` | 无（门禁自动检查） |
+| M3 | `okr-role-run(BE)` → `okr-role-run(FE)` → `okr-role-run(QA)` → `okr-role-run(DevOps)` → `okr-role-run(SEC)` → `okr-role-run(TW)` → `okr-alignment-check` → `okr-status-tracker` | 无（门禁自动检查：证据 + 自检达标） |
 | M4 | `okr-review-score` → `okr-next-cycle` | 最终 R 确认 |
 
 ## 执行步骤
@@ -101,7 +101,7 @@ description: Run the full DoWithOKR workflow from client need to GM OKR, role tr
 
 ### M2 方案成型幕
 
-11. 调用 `okr-execution-plan`：生成执行计划。
+11. 调用 `okr-execution-plan`：生成交付验证计划（验收标准 + 验证方法 + 证据类型）。
 12. 调用 `okr-role-run`：执行 PD 产品总监角色 OKR。
 13. 调用 `okr-role-run`：执行 PM 产品经理和 UI 设计师角色 OKR。
 14. 调用 `okr-role-run`：执行 ArchD 技术总监角色 OKR。
@@ -111,9 +111,9 @@ description: Run the full DoWithOKR workflow from client need to GM OKR, role tr
 ### M3 构建验证幕
 
 17. 按推荐顺序调用 `okr-role-run`：BE → FE → QA → DevOps → SEC → TW（按角色树裁剪结果跳过不参与的角色）。
-17. 每个角色执行后调用 `okr-alignment-check`：检查是否偏离。
+17. 每个角色执行后调用 `okr-alignment-check`：检查交付结果是否满足 KR 标准。
 18. 调用 `okr-status-tracker`：展示当前看板。
-19. **门禁检查**：关键 KR 是否有证据。未通过 → 停留 M3，提示缺失项。
+19. **门禁检查**：关键 KR 是否有证据且自检结果达标。未通过 → 停留 M3，提示缺失项和未达标项。
 
 ### M4 收敛复盘幕
 

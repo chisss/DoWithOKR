@@ -25,6 +25,7 @@ description: Create hierarchical OKR, delivery act plans, and mapping relationsh
 - GM OKR 是所有角色 OKR 的唯一源头。
 - 下级角色 KR 必须映射到上级 KR。
 - 每个角色 Objective 搭配 2-5 个 Key Results。
+- 角色 KR 必须符合"交付标准"范式：时间节点 + 交付物 + 质量指标，且质量指标必须是上层 KR 的具体化。
 - 使用交付幕表达虚拟进度，不使用现实时间周期承诺。
 - 交付幕固定为 M0、M1、M2、M3、M4，可按需求合并或重复。
 - 映射关系缺失时，必须提示无人负责或局部完成风险。
@@ -37,18 +38,23 @@ description: Create hierarchical OKR, delivery act plans, and mapping relationsh
    - Objective 必须与该角色的上级 KR 相关。
 3. 为每个角色拆解 2-5 个 Key Results：
    - 每个 KR 编号格式：`{角色缩写}-KR{序号}`（如 PD-KR1、PM-KR1、ARCHD-KR1、BE-KR1）。
+   - 每个 KR 必须符合"交付标准"范式：时间节点（交付幕）+ 交付物 + 至少一个量化指标。
+   - 每个 KR 的质量指标必须是上层 KR 质量指标的具体化（如 GM-KR 要求覆盖率 ≥ 80%，BE-KR 应要求 ≥ 90%）。
    - 每个 KR 标注上级映射（映射到哪个上级 KR）。
    - 每个 KR 标注所属交付幕（M2 或 M3）。
 4. 验证映射完整性：
    - 每个 GM KR 至少有一个下级角色 KR 映射到它。
    - 如果存在无人负责的 GM KR → 标记为风险并提示。
-5. 生成交付幕计划表：
+5. 验证对齐质量：
+   - 检查下层 KR 的交付物是否能支撑上层 KR 的质量指标。
+   - 标记"对齐弱"的 KR（交付物与上层质量指标关联不明确）并给出修正建议。
+6. 生成交付幕计划表：
    - M0 需求转译幕：GM OKR 获得确认。
    - M1 组织拆解幕：角色树与角色 OKR 完成。
    - M2 方案成型幕：产品和架构形成可执行方案。
    - M3 构建验证幕：研发、测试、交付角色产出证据。
    - M4 收敛复盘幕：上级评分并汇总最终 R。
-6. 写入 `.okr/active.md` 和 `.okr/status.md`。
+7. 写入 `.okr/active.md` 和 `.okr/status.md`。
 
 ## 输出格式
 

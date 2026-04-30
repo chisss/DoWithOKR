@@ -29,6 +29,7 @@ description: Convert user or client needs into GM OKR, scope, acceptance criteri
 - 检查 `.okr/` 目录是否存在。
   - 不存在 → 创建 `.okr/` 目录。
   - 已存在且 `.okr/active.md` 包含 `## GM OKR` 区块 → 提示用户选择：覆盖当前 GM OKR、或取消。
+- 可选：读取 `.okr/wisdom/gm.md`（如存在），作为 KR 定义的先验知识。读取后在生成 KR 时参考历史经验，避免重复犯错，并参考历史数据设定合理的量化指标。
 - 读取用户输入的自然语言需求。
 
 ## 执行规则
@@ -36,28 +37,34 @@ description: Convert user or client needs into GM OKR, scope, acceptance criteri
 - 把用户自然语言需求视为甲方需求。
 - GM 是甲方总经理（甲方代理），只能代理和复述用户需求，不能擅自扩大范围。
 - 输出 GM Objective 和 2-5 个 GM Key Results。
-- 每个 KR 必须包含验收标准、证据要求和状态。
+- 每个 KR 必须符合"交付标准"范式：时间节点 + 交付物 + 质量指标，纯动作描述的 KR 不得通过。
+- 每个 KR 必须包含证据要求和状态。
 - 不确定内容进入"待确认"，不得伪装为已确认。
 
 ## 执行步骤
 
 1. 提取用户需求中的核心关键词和业务目标。
-2. 判断需求边界：
+2. 如果 `.okr/wisdom/gm.md` 存在，读取并展示相关历史教训供参考（如"上次 KR 定义太宽泛导致评分模糊"）。
+3. 判断需求边界：
    - 用户明确提到的功能 → 纳入范围。
    - 用户未提及但常见的关联功能（如第三方登录、SSO）→ 放入"边界"标记为不包含。
    - 无法判断是否需要的功能 → 放入"待确认"。
-3. 将需求转化为 1 个 GM Objective：以甲方视角表达业务结果，而非技术实现。
-4. 拆解 2-5 个 GM Key Results：
-   - 每个 KR 必须可验证（有明确的完成标准）。
+4. 将需求转化为 1 个 GM Objective：以甲方视角表达业务结果，而非技术实现。
+5. 拆解 2-5 个 GM Key Results：
+   - 每个 KR 必须包含：时间节点（交付幕或具体日期）+ 交付物描述 + 至少一个量化指标。
    - 每个 KR 必须指定证据类型（接口、页面、测试记录、文档等）。
    - 初始状态统一为"未开始"。
-5. 按 `references/gm-okr-template.md` 格式组织输出。
-6. 写入 `.okr/active.md`。
-7. 向用户展示完整 GM OKR，请求确认后再继续后续技能。
+6. KR 质量自检：
+   - 按 `references/gm-okr-template.md` 中的"KR 反模式检测规则"逐条检测。
+   - 命中反模式的 KR 自动给出修正建议并重写，拒绝纯动作描述的 KR 进入下一阶段。
+   - 所有 KR 必须通过"KR 质量检查清单"（含 Deliverable 维度）。
+7. 按 `references/gm-okr-template.md` 格式组织输出。
+8. 写入 `.okr/active.md`。
+9. 向用户展示完整 GM OKR，请求确认后再继续后续技能。
 
 ## 输出格式
 
-使用 `references/gm-okr-template.md`，并展示 GM OKR、边界、待确认问题。
+使用 `references/gm-okr-template.md`，并展示 GM OKR、边界、待确认问题。KR 表格必须使用六列格式：`| KR ID | 时间节点 | 交付物 | 质量指标 | 证据要求 | 状态 |`。
 
 必须包含：
 

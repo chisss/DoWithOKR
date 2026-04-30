@@ -40,6 +40,8 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
   - 文件不存在 → 提示用户先运行 `okr-planner` 或 `okr-execution-plan` 生成初始看板。
 - 从 `## 层级 OKR` 中定位目标角色和 KR，提取上级映射链（如 BE-KR1 → ARCHD-KR1 → GM-KR1）。
 - 从 `status.md` 中读取目标 KR 当前状态。
+- 可选：读取 `.okr/active.md` 中的 `## 交付验证计划` 区块（如存在），提取目标 KR 的验收标准、验证方法和证据类型。
+- 可选：读取 `.okr/wisdom/{role}.md`（如存在），获取角色的专业知识和历史教训，作为执行的先验知识。
 
 ## 执行规则
 
@@ -59,20 +61,29 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
    - 角色名、目标 KR、上级映射链。
    - 当前状态（从 status.md 读取）。
    - 上游依赖状态（上级 KR 是否已完成）。
+   - 角色 wisdom 摘要（如存在）：展示相关专业知识和历史教训。
 3. 检查上游依赖：
    - 上游 KR 已完成 → 正常执行。
    - 上游 KR 未完成 → 提示风险（"上游 ARCHD-KR1 尚未完成，继续执行可能产出不完整"），但不强制阻止。
-4. 按角色职责执行 KR 内容：
-   - PD 产品总监：管理产品方向，协调 PM、UI、TW 的产出，确保产品方案完整。
-   - PM 产品经理：输出用户流程、权限矩阵、验收标准等文档。
-   - UI 设计师：输出 UI 设计稿、交互规范、视觉标准。
-   - ArchD 技术总监：输出技术方案、接口设计、数据模型等。
-   - BE 后端开发工程师：实现 API、数据模型、业务逻辑，产出代码和测试。
-   - FE 前端开发工程师：实现页面、状态管理、交互，产出代码和截图。
-   - QA 测试工程师：编写测试用例、执行测试、记录结果。
-   - TW 文档专家/DX：输出 README、示例、安装和故障排查文档。
-   - 其他角色（DevOps、SEC）：按其职责定义执行。
-5. 收集执行证据（参考 `references/evidence-spec.md`）：
+4. 角色自主交付：
+   - 角色读取 KR 内容和验收标准后，**自主决定实现路径**。系统不规定步骤顺序。
+   - 以下角色职责描述仅作为能力参考，不作为执行约束：
+     - PD 产品总监：管理产品方向，协调 PM、UI、TW 的产出，确保产品方案完整。
+     - PM 产品经理：输出用户流程、权限矩阵、验收标准等文档。
+     - UI 设计师：输出 UI 设计稿、交互规范、视觉标准。
+     - ArchD 技术总监：输出技术方案、接口设计、数据模型等。
+     - BE 后端开发工程师：实现 API、数据模型、业务逻辑，产出代码和测试。
+     - FE 前端开发工程师：实现页面、状态管理、交互，产出代码和截图。
+     - QA 测试工程师：编写测试用例、执行测试、记录结果。
+     - TW 文档专家/DX：输出 README、示例、安装和故障排查文档。
+     - 其他角色（DevOps、SEC）：按其职责定义执行。
+   - 角色有权选择自己认为最优的技术方案、实现路径和工具链。
+5. 交付自检：
+   - 执行完成后，角色按验收标准逐条自检（如有交付验证计划）。
+   - 输出自检结果：达标 / 部分达标 / 未达标。
+   - 未达标项标注差距说明和建议补救措施。
+   - 无交付验证计划时，按 KR 的质量指标进行基础自检。
+6. 收集执行证据（参考 `references/evidence-spec.md`）：
    - 扫描 `git diff --name-only` 获取本次执行新增或修改的文件列表，记录为 `文件` 类型证据。
    - 如果执行过程中产生了 git commit，记录 commit hash 为 `commit` 类型证据。
    - 如果执行了测试命令，捕获测试通过/失败结果，记录为 `测试` 类型证据。
@@ -82,10 +93,10 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
    - 文件不存在 → 创建，写入标题 `# {KR-ID} 证据` 和表头 `| 类型 | 路径/引用 | 说明 | 时间 |`。
    - 文件已存在 → 追加新证据行，不覆盖历史条目。
    - 每条证据一行，时间格式 `YYYY-MM-DD`。
-7. 更新 `.okr/status.md` 中对应 KR 的证据列：
+8. 更新 `.okr/status.md` 中对应 KR 的证据列：
    - 格式：`[N 条](.okr/evidence/{KR-ID}.md)`，N 为该 KR 当前证据总条目数。
    - 无证据时显示 `无`。
-8. 更新状态文件。
+9. 更新状态文件。
 
 ## 输出格式
 
@@ -96,7 +107,8 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
 - 角色
 - 执行 KR
 - 上级映射
-- 已完成
+- 交付物（描述实际交付了什么，而非做了什么步骤）
+- 自检结果（每条验收标准的达标情况：达标 / 部分达标 / 未达标）
 - 证据
 - 状态
 - 下一步

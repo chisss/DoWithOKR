@@ -19,6 +19,7 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - 读取 `.okr/active.md`，提取角色树和上下级关系（确定谁给谁评分）。
 - 读取 `.okr/evidence/` 目录下所有证据文件，汇总每个 KR 的证据清单。
 - 可选：读取 `.okr/reviews/` 目录，检查是否已有历史评分记录。
+- 可选：读取 `.okr/wisdom/` 目录下角色 wisdom 文件，作为评分时的参考上下文（如历史评分趋势、已知的角色能力水平）。
 
 ## 执行规则
 
@@ -58,7 +59,21 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 7. 计算 GM 最终 R：
    - GM 最终 R = 产品线 R × 40% + 技术线 R × 60%。
 8. 生成复盘结论和下一轮建议。
-9. 写入评分记录。
+9. 生成价值总结（参考 `references/score-review-template.md` 的价值总结区块）：
+   - 回答：本次交付创造了什么业务/技术/用户价值？
+   - 回答：团队的哪些能力得到了提升？（量化对比）
+   - 回答：有哪些可复用的洞察？（有效实践 + 陷阱警示 + 流程改进）
+   - 回答：下次应该在哪里投入更多？
+10. 写入评分记录（含价值总结）。
+11. 经验提炼（参考 `references/wisdom-spec.md`）：
+    - 分析本次评分结果：哪些 KR 得分高/低？原因是什么？
+    - 提取可复用的经验：什么做法有效？什么是陷阱？
+    - 为每个参与角色更新 wisdom 文件：
+      - 追加反思记录（Cycle N 标题 + 教训 + 改进 + 效果）。
+      - 更新专业知识（如果发现新的有效实践）。
+      - 更新项目上下文（如果项目信息有变化）。
+    - 更新 `.okr/wisdom/team.md`：提炼团队级别的协作经验。
+    - wisdom 文件不存在时自动创建（含 frontmatter 和空区块）。
 
 ## 输出格式
 
@@ -70,6 +85,7 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - 上级评分
 - 角色 R
 - GM 最终 R
+- 价值总结（交付价值、能力提升、关键洞察、投入建议）
 - 下一轮建议
 
 ## 异常处理
@@ -86,3 +102,8 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - 更新 `.okr/status.md`：
   - 将已评分 KR 的进展字段更新为评分分数。
   - 更新 frontmatter：`last_updated`、`updated_by: okr-review-score`。
+- 创建或更新 `.okr/wisdom/{role}.md`（参考 `references/wisdom-spec.md`）：
+  - 为每个参与角色写入经验提炼结果。
+  - 更新 frontmatter 的 `updated` 和 `cycles_completed`。
+- 创建或更新 `.okr/wisdom/team.md`：
+  - 写入团队级别的协作经验。
