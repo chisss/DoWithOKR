@@ -1,0 +1,8 @@
+{
+  "name": "dowithokr",
+  "version": "0.1.0",
+  "description": "A multi-skill OKR plugin that turns user needs into Boss OKR, role OKR, delivery acts, score reviews, and final results.",
+  "author": {
+    "name": "DoWithOKR"
+  }
+}

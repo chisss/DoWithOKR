@@ -1,0 +1,11 @@
+{
+  "name": "dowithokr",
+  "version": "0.1.0",
+  "description": "A multi-skill OKR plugin that works like a small technical company for AI tasks.",
+  "interface": {
+    "displayName": "DoWithOKR"
+  },
+  "skills": {
+    "path": "skills"
+  }
+}
