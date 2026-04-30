@@ -111,6 +111,10 @@ for (const skill of skills) {
 
   // 2b. 必需章节校验（保持原有逻辑）
   for (const section of requiredSections) {
+    // Role Preamble 是 前置读取 的升级版，两者等价
+    if (section === "## 前置读取" && content.includes("## Role Preamble")) {
+      continue;
+    }
     if (!content.includes(section)) {
       addError(skill, `${file} missing ${section}`);
     }
@@ -145,8 +149,11 @@ for (const skill of skills) {
     addError(skill, `${file} '## 执行步骤' has only ${stepLines.length} content lines (minimum 5)`);
   }
 
-  // 2g. 前置读取必须引用 .okr/ 文件
-  const readSection = extractSection(content, "## 前置读取");
+  // 2g. 前置读取（或 Role Preamble）必须引用 .okr/ 文件
+  let readSection = extractSection(content, "## 前置读取");
+  if (!readSection) {
+    readSection = extractSection(content, "## Role Preamble（角色上下文加载）");
+  }
   if (readSection !== null) {
     const readText = readSection.join("\n");
     if (!readText.includes(".okr/")) {
