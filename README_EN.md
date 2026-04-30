@@ -215,6 +215,60 @@ Recommended: `echo '.okr/' >> .gitignore`
 
 ## Example Output
 
+### `/okr-planner` Output Example
+
+**OKR Tree**
+
+```text
+GM General Manager
+├── PD Product Director
+│   ├── PM Product Manager
+│   ├── UI Designer
+│   └── TW Technical Writer / DX
+└── ArchD Technical Director
+    ├── BE Backend Engineer
+    ├── FE Frontend Engineer
+    ├── QA Test Engineer
+    ├── DevOps Release Engineer
+    └── SEC Security Engineer
+```
+
+**Hierarchical OKR**
+
+| Hierarchy Path | Upper Mapping | Objective | Key Results |
+| --- | --- | --- | --- |
+| GM General Manager | Client need | Deliver a secure, usable, and extensible login and access-control capability. | GM-KR1: By M4, registration, login, and logout acceptance pass rate reaches 100%.<br>GM-KR2: By M4, role-based access control covers admin and regular user roles.<br>GM-KR3: By M4, key-flow security checks pass at 100%. |
+| GM → PD Product Director | GM-KR1, GM-KR2 | Translate login and access-control needs into an acceptable product plan. | PD-KR1: By M2, complete core flows and acceptance criteria, covering 3 GM-KR1 scenarios with 100% review pass rate.<br>PD-KR2: By M2, complete the role-permission matrix, covering 2 GM-KR2 roles with 0 missing critical permissions. |
+| GM → PD → PM Product Manager | PD-KR1, PD-KR2 | Detail user flows and acceptance criteria for login and permissions. | PM-KR1: By M2, complete registration, login, and logout flow specs with 100% exception-branch coverage.<br>PM-KR2: By M2, complete permission acceptance cases covering all roles and operations in PD-KR2. |
+| GM → PD → UI Designer | PD-KR1 | Make account flows clear and resistant to user mistakes. | UI-KR1: By M2, complete interaction drafts for login, registration, and permission prompts with 100% key-state coverage.<br>UI-KR2: By M2, complete error-message and empty-state guidelines with 100% review issue closure. |
+| GM → PD → TW Technical Writer / DX | PD-KR1, PD-KR2 | Reduce integration, acceptance, and usage friction. | TW-KR1: By M3, complete README usage guidance covering installation, login, and permission configuration.<br>TW-KR2: By M3, complete API examples and acceptance notes with 0 integration blockers. |
+| GM → ArchD Technical Director | GM-KR1, GM-KR2, GM-KR3 | Form an implementable, testable, and extensible login/access technical plan. | ARCHD-KR1: By M2, complete API, data model, and auth design covering all GM-KR1 and GM-KR2 acceptance items.<br>ARCHD-KR2: By M2, complete the security checklist and test boundaries covering 3 GM-KR3 risk categories. |
+| GM → ArchD → BE Backend Engineer | ARCHD-KR1, ARCHD-KR2 | Deliver stable authentication and authorization service capabilities. | BE-KR1: By M3, complete registration, login, and logout APIs with unit test coverage ≥ 90% and 100% contract pass rate.<br>BE-KR2: By M3, complete RBAC authorization middleware with 100% unauthorized-access test pass rate. |
+| GM → ArchD → FE Frontend Engineer | ARCHD-KR1 | Deliver a usable login and permission frontend experience. | FE-KR1: By M3, complete login, registration, and logout pages with 100% end-to-end pass rate for core flows.<br>FE-KR2: By M3, complete permission routing and button-level controls with 100% permission-scenario coverage. |
+| GM → ArchD → QA Test Engineer | ARCHD-KR1, ARCHD-KR2 | Verify that login and permission capabilities meet delivery standards. | QA-KR1: By M3, complete the core-flow test suite covering 3 GM-KR1 scenarios with 100% regression pass rate.<br>QA-KR2: By M3, complete permission and security test suites covering unauthorized access, sessions, and failed retries. |
+| GM → ArchD → DevOps Release Engineer | ARCHD-KR1 | Ensure the login/access module can be delivered reliably. | DEVOPS-KR1: By M3, complete CI validation with 100% test and build pass rate.<br>DEVOPS-KR2: By M3, complete deployment and rollback notes with 0 release rehearsal blockers. |
+| GM → ArchD → SEC Security Engineer | ARCHD-KR2 | Identify and close key account-security risks. | SEC-KR1: By M3, complete authentication and authorization security checks covering all GM-KR3 risk items.<br>SEC-KR2: By M3, complete high-risk retesting with 0 remaining P0/P1 vulnerabilities. |
+
+**Delivery Act Plan**
+
+| Act | Goal | Owner | Exit Gate |
+| --- | --- | --- | --- |
+| M0 Requirement Translation | Confirm GM OKR | GM | GM-KR acceptance criteria are clear |
+| M1 Organization Decomposition | Complete role tree and hierarchical OKR | GM | GM remains the root node, with complete PD and ArchD branches |
+| M2 Solution Formation | Complete product and technical plans | PD Product Director, ArchD Technical Director | Acceptance criteria, API contracts, and security boundaries are clear |
+| M3 Build Verification | Produce engineering, testing, release, security, and docs evidence | BE, FE, QA, DevOps, SEC, TW | Core KR have code, test, documentation, or review evidence |
+| M4 Convergence Review | Score upstream and summarize final R | GM | Scores, risks, and next-cycle recommendations are complete |
+
+**Mapping Relationships**
+
+| Upper Node | Downstream Ownership | Coverage Check |
+| --- | --- | --- |
+| GM | PD, ArchD | GM only drills down through two first-level owners, preserving one top-level value frame |
+| PD-KR1 | PM-KR1, UI-KR1, UI-KR2, TW-KR1 | Product flows, interaction design, and usage docs jointly cover core-flow acceptance |
+| PD-KR2 | PM-KR2, TW-KR2 | The permission matrix is covered by acceptance cases and API examples |
+| ARCHD-KR1 | BE-KR1, FE-KR1, FE-KR2, QA-KR1, DEVOPS-KR1, DEVOPS-KR2 | The technical plan is covered by backend/frontend implementation, testing, and release capability |
+| ARCHD-KR2 | BE-KR2, QA-KR2, SEC-KR1, SEC-KR2 | Security boundaries are covered by permission implementation, tests, and security retesting |
+
 ### Status Board
 
 | KR | Upper KR | Role | Act | Status | Progress | Evidence | Next Step |
