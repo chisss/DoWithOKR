@@ -1,5 +1,7 @@
 # DoWithOKR
 
+[English](README_EN.md)
+
 DoWithOKR 是一个面向 Claude Code 与 Codex 的多技能 OKR 工作流插件。它的核心隐喻是“用 OKR 开展工作的小型技术公司”：用户是甲方，Boss 是乙方总负责人/用户需求代理，先把自然语言需求转成 Boss OKR，再拆解为各专业角色 OKR，并通过交付幕、状态看板、上级评分收敛最终 R。
 
 ## Core Concept
@@ -143,12 +145,6 @@ DoWithOKR，进行 OKR 评分复盘。
 | 架构师 | 后端开发 | BE-KR1 | 0.6  | tests/login.spec.ts | 登录闭环完成，权限未完成 |
 
 **Boss 最终 R：0.72**
-
-## Documentation
-
-- [产品文档](docs/DoWithOKR-product-document.md)
-- [输出格式规范](docs/DoWithOKR-output-format-spec.md)
-- [实施计划](docs/superpowers/plans/2026-04-30-dowithokr-plugin.md)
 
 ## Validation
 
