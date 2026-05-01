@@ -423,7 +423,38 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
 @media (max-width: 768px) {
   #topbar { flex-wrap: wrap; gap: 8px; }
   #project-name { order: 3; max-width: 100%; }
-  #sidebar { display: none; }
+  #sidebar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .menu-title { display: none; }
+  .menu-list {
+    flex-direction: row;
+    gap: 6px;
+    min-width: max-content;
+  }
+  .menu-item {
+    width: auto;
+    min-height: 32px;
+    white-space: nowrap;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
   #detail-drawer { display: none; }
-  #layout { flex-direction: column; }
+  #layout {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    flex-direction: column;
+  }
+  #workspace {
+    min-width: 0;
+    padding: 16px 20px;
+  }
 }
