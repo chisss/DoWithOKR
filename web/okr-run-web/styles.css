@@ -457,4 +457,41 @@ textarea:focus, input:focus { outline: none; border-color: var(--accent); }
     min-width: 0;
     padding: 16px 20px;
   }
+  table, tbody, tr, th, td {
+    display: block;
+  }
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  tr {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+  }
+  tr:first-child {
+    display: none;
+  }
+  td {
+    border-bottom: 0;
+    display: grid;
+    grid-template-columns: minmax(80px, 34%) minmax(0, 1fr);
+    gap: 10px;
+    padding: 6px 0;
+    word-break: break-word;
+  }
+  td::before {
+    content: attr(data-label);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .status-badge {
+    justify-self: start;
+  }
+  .progress-bar {
+    margin-top: 4px;
+  }
 }

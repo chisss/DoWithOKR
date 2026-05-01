@@ -156,9 +156,10 @@
         html += "<tr>";
         cells.forEach((c, ci) => {
           const isStatus = headers[ci] && /状态|Status/i.test(headers[ci]);
+          const label = esc(headers[ci] || "");
           html += isStatus
-            ? `<td><span class="status-badge ${statusClass(c)}">${esc(c)}</span></td>`
-            : `<td>${esc(c)}</td>`;
+            ? `<td data-label="${label}"><span class="status-badge ${statusClass(c)}">${esc(c)}</span></td>`
+            : `<td data-label="${label}">${esc(c)}</td>`;
         });
         html += "</tr>";
       }
@@ -353,9 +354,10 @@
       return `<tr>${krHeaders.map((h) => {
         const val = kr[h] || "";
         const isStatus = /状态|Status/i.test(h);
+        const label = esc(h);
         return isStatus
-          ? `<td><span class="status-badge ${statusClass(val)}">${esc(val)}</span></td>`
-          : `<td>${esc(val)}</td>`;
+          ? `<td data-label="${label}"><span class="status-badge ${statusClass(val)}">${esc(val)}</span></td>`
+          : `<td data-label="${label}">${esc(val)}</td>`;
       }).join("")}</tr>`;
     }).join("");
 
@@ -419,14 +421,14 @@
       const cls = r.kr === selectedKr ? "selected" : "";
       const progressWidth = Math.max(0, Math.min(100, (parseFloat(r.progress) || 0) * 100));
       return `<tr class="${cls}" onclick="selectKr('${esc(r.kr)}')">
-        <td>${esc(r.kr)}</td><td>${esc(r.upperKr)}</td><td>${esc(r.role)}</td>
-        <td>${esc(r.act)}</td>
-        <td><span class="status-badge ${statusClass(r.status)}">${esc(r.status)}</span></td>
-        <td>
+        <td data-label="${t("krId")}">${esc(r.kr)}</td><td data-label="${t("upperMapping")}">${esc(r.upperKr)}</td><td data-label="${t("role")}">${esc(r.role)}</td>
+        <td data-label="${t("act")}">${esc(r.act)}</td>
+        <td data-label="${t("status")}"><span class="status-badge ${statusClass(r.status)}">${esc(r.status)}</span></td>
+        <td data-label="${t("progress")}">
           <div class="progress-bar"><div class="progress-fill" style="width:${progressWidth}%"></div></div>
           ${r.progress}
         </td>
-        <td>${esc(r.evidence)}</td><td>${esc(r.nextStep)}</td>
+        <td data-label="${t("evidence")}">${esc(r.evidence)}</td><td data-label="${t("nextStep")}">${esc(r.nextStep)}</td>
       </tr>`;
     }).join("");
     return `<div class="section" id="nav-status">
