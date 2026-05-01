@@ -26,6 +26,7 @@ function resolveWebDir() {
 
 export function createServer(options = {}) {
   const projectRoot = options.projectRoot || process.cwd();
+  const projectName = path.basename(path.resolve(projectRoot)) || projectRoot;
   const token = options.token || crypto.randomBytes(18).toString("hex");
   const openBrowser = options.openBrowser !== false;
   const webDir = resolveWebDir();
@@ -39,7 +40,12 @@ export function createServer(options = {}) {
   }
 
   function getState() {
-    return readOkrState(projectRoot);
+    return {
+      ...readOkrState(projectRoot),
+      project: {
+        name: projectName,
+      },
+    };
   }
 
   function broadcastSnapshot() {

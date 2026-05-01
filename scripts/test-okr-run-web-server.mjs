@@ -6,6 +6,7 @@ import http from "node:http";
 import { createServer } from "./okr-run-web.mjs";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-server-"));
+const projectName = path.basename(root);
 fs.mkdirSync(path.join(root, ".okr", "evidence"), { recursive: true });
 fs.writeFileSync(path.join(root, ".okr", "active.md"), [
   "---", "current_act: M1", "---",
@@ -59,6 +60,7 @@ async function runTests() {
     const state = JSON.parse(stateRes.body);
     assert.equal(state.currentAct, "M1");
     assert.equal(state.hasActive, true);
+    assert.equal(state.project.name, projectName);
 
     // POST /api/start 接受请求
     const startRes = await fetch(`${base}/api/start?token=${token}`, {

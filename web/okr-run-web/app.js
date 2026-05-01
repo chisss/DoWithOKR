@@ -8,6 +8,8 @@
   const I18N = {
     zh: {
       title: "DoWithOKR Run Web",
+      project: "项目",
+      menu: "菜单",
       rawRequirement: "原始需求",
       gmOkr: "GM OKR",
       roleTree: "角色树",
@@ -47,6 +49,8 @@
     },
     en: {
       title: "DoWithOKR Run Web",
+      project: "Project",
+      menu: "Menu",
       rawRequirement: "Raw Requirement",
       gmOkr: "GM OKR",
       roleTree: "Role Tree",
@@ -91,6 +95,7 @@
   let selectedKr = null;
   let inputMode = "raw";
   let evtSource = null;
+  let activeNav = "nav-start";
 
   function t(key) { return I18N[lang]?.[key] || I18N.zh[key] || key; }
 
@@ -125,12 +130,20 @@
       { id: "nav-events", label: t("events") },
       { id: "nav-reviews", label: t("reviews") },
     ];
-    sb.innerHTML = items.map((i) =>
-      `<div class="tree-node-label" onclick="scrollToSection('${i.id}')">${i.label}</div>`
-    ).join("");
+    sb.innerHTML = `
+      <div class="menu-title">${t("menu")}</div>
+      <div class="menu-list">
+        ${items.map((i) => `
+          <button class="menu-item ${activeNav === i.id ? "active" : ""}" type="button" onclick="scrollToSection('${i.id}')">
+            <span>${i.label}</span>
+          </button>
+        `).join("")}
+      </div>`;
   }
 
   window.scrollToSection = function (id) {
+    activeNav = id;
+    renderSidebar();
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -273,6 +286,9 @@
 
   function render() {
     document.getElementById("lang-toggle").textContent = lang === "zh" ? "EN" : "中文";
+    const projectName = state?.project?.name || "";
+    document.getElementById("project-name").textContent = projectName ? `${t("project")}: ${projectName}` : "";
+    document.getElementById("project-name").title = projectName;
     document.getElementById("current-act").textContent = state?.currentAct ? `${t("currentAct")}: ${state.currentAct}` : "";
     renderSidebar();
     const ws = document.getElementById("workspace");
