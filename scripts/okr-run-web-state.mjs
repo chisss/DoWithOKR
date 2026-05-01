@@ -26,6 +26,97 @@ export function extractSection(markdown, heading) {
 }
 
 /**
+ * 从 Markdown 中提取指定 ### 标题下的内容
+ */
+export function extractSubSection(markdown, heading) {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const lines = markdown.split("\n");
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(new RegExp(`^### ${escaped}\\s*$`))) {
+      start = i + 1;
+      break;
+    }
+  }
+  if (start === -1) return "";
+  let end = lines.length;
+  for (let i = start; i < lines.length; i++) {
+    if (/^###? /.test(lines[i]) && i !== start - 1) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n").trim();
+}
+
+/**
+ * 解析 bullet list，识别边界分类前缀
+ */
+export function parseBulletList(text) {
+  if (!text) return [];
+  return text.split("\n")
+    .filter((l) => l.trim().startsWith("- "))
+    .map((l) => {
+      const content = l.replace(/^-\s+/, "");
+      if (/^包含[：:]/.test(content)) return { type: "include", text: content.replace(/^包含[：:]\s*/, "") };
+      if (/^不包含[：:]/.test(content)) return { type: "exclude", text: content.replace(/^不包含[：:]\s*/, "") };
+      if (/^不默认包含[：:]/.test(content)) return { type: "optional", text: content.replace(/^不默认包含[：:]\s*/, "") };
+      return { type: "plain", text: content };
+    });
+}
+
+/**
+ * 解析待确认区块：主级 bullet 为问题，子级 bullet 为推荐方案
+ */
+export function parsePendingQuestions(text) {
+  if (!text) return [];
+  const lines = text.split("\n");
+  const questions = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (/^- /.test(line)) {
+      if (current) questions.push(current);
+      current = { question: line.replace(/^-\s+/, ""), suggestions: [] };
+    } else if (/^\s{2,}- /.test(line) && current) {
+      current.suggestions.push(line.replace(/^\s+- /, ""));
+    }
+  }
+  if (current) questions.push(current);
+  return questions;
+}
+
+/**
+ * 解析 GM OKR 区块为结构化对象
+ */
+export function parseGmOkrSection(rawMarkdown) {
+  if (!rawMarkdown) return null;
+  let objective = "";
+  let keyResults = [];
+  let boundaries = [];
+  let pendingQuestions = [];
+
+  const hasFullFormat = /^### GM Objective/m.test(rawMarkdown);
+
+  if (hasFullFormat) {
+    objective = extractSubSection(rawMarkdown, "GM Objective").split("\n").filter(Boolean)[0] || "";
+    const krText = extractSubSection(rawMarkdown, "GM Key Results");
+    keyResults = parseMarkdownTable(krText);
+    boundaries = parseBulletList(extractSubSection(rawMarkdown, "边界"));
+    pendingQuestions = parsePendingQuestions(extractSubSection(rawMarkdown, "待确认"));
+  } else {
+    const lines = rawMarkdown.split("\n");
+    const objLine = lines.find((l) => /^O-GM[：:]/.test(l));
+    objective = objLine ? objLine.replace(/^O-GM[：:]\s*/, "") : lines.find((l) => l.trim() && !l.startsWith("|") && !l.startsWith("#") && !l.startsWith("-")) || "";
+    keyResults = parseMarkdownTable(rawMarkdown);
+    boundaries = parseBulletList(extractSubSection(rawMarkdown, "边界"));
+  }
+
+  if (!objective && keyResults.length === 0) return null;
+  return { objective, keyResults, boundaries, pendingQuestions };
+}
+
+/**
  * 解析 Markdown 表格为对象数组
  */
 export function parseMarkdownTable(markdown) {
@@ -129,12 +220,14 @@ export function readOkrState(projectRoot) {
   }
 
   const events = readWebEvents(projectRoot);
+  const gmOkrParsed = sections.gmOkr ? parseGmOkrSection(sections.gmOkr) : null;
 
   return {
     projectRoot,
     currentAct: frontmatter.current_act || "",
     hasActive,
     sections,
+    gmOkrParsed,
     statusRows,
     evidenceFiles,
     reviewFiles,

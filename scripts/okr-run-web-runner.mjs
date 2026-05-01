@@ -38,6 +38,24 @@ export function detectRunner(env = process.env) {
 }
 
 /**
+ * 构建带用户反馈的 okr-gm 重跑 prompt
+ */
+export function buildGmRefinePrompt(requirement, answers) {
+  const feedbackLines = answers
+    .map((a, i) => `${i + 1}. ${a.question}\n   → ${a.answer || "忽略"}`)
+    .join("\n");
+  return [
+    `使用 okr-gm 技能重新生成 GM OKR。`,
+    `原始需求：${requirement}`,
+    ``,
+    `用户对待确认问题的反馈：`,
+    feedbackLines,
+    ``,
+    `请根据用户反馈更新 GM OKR：将已确认的选择纳入边界或 KR 约束，忽略的问题从待确认中移除。`,
+  ].join("\n");
+}
+
+/**
  * 启动 okr-run 执行
  */
 export function startOkrRun(projectRoot, input, options = {}) {

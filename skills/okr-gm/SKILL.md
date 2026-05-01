@@ -48,7 +48,7 @@ description: Convert user or client needs into GM OKR, scope, acceptance criteri
 3. 判断需求边界：
    - 用户明确提到的功能 → 纳入范围。
    - 用户未提及但常见的关联功能（如第三方登录、SSO）→ 放入"边界"标记为不包含。
-   - 无法判断是否需要的功能 → 放入"待确认"。
+   - 无法判断是否需要的功能 → 放入"待确认"，并为每个待确认问题生成 2-3 个推荐方案（结合需求上下文，说明各方案的取舍）。
 4. 将需求转化为 1 个 GM Objective：以甲方视角表达业务结果，而非技术实现。
 5. 拆解 2-5 个 GM Key Results：
    - 每个 KR 必须包含：时间节点（交付幕或具体日期）+ 交付物描述 + 至少一个量化指标。
@@ -72,7 +72,7 @@ description: Convert user or client needs into GM OKR, scope, acceptance criteri
 - GM Objective
 - GM Key Results
 - 边界
-- 待确认
+- 待确认（每个问题必须附带 2-3 个推荐方案作为子级列表项，方案需结合当前需求上下文生成，格式见模板）
 
 ## 异常处理
 

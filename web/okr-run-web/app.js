@@ -46,7 +46,15 @@
       blocked: "阻塞",
       done: "已完成",
       abandoned: "放弃",
+      pendingQuestions: "待确认",
+      include: "包含",
+      exclude: "不包含",
+      optional: "不默认包含",
+      ignoreQuestion: "忽略此问题",
+      recommend: "推荐",
+      submitRefine: "提交反馈并重新生成 GM OKR",
     },
+    /* PLACEHOLDER_EN */
     en: {
       title: "DoWithOKR Run Web",
       project: "Project",
@@ -87,6 +95,13 @@
       blocked: "Blocked",
       done: "Done",
       abandoned: "Abandoned",
+      pendingQuestions: "Pending Questions",
+      include: "Include",
+      exclude: "Exclude",
+      optional: "Optional",
+      ignoreQuestion: "Ignore this question",
+      recommend: "Recommended",
+      submitRefine: "Submit Feedback & Regenerate GM OKR",
     },
   };
 
@@ -95,7 +110,8 @@
   let selectedKr = null;
   let inputMode = "raw";
   let evtSource = null;
-  let activeNav = "nav-start";
+  let activeNav = "nav-gm-okr";
+  let pendingAnswers = {};
 
   function t(key) { return I18N[lang]?.[key] || I18N.zh[key] || key; }
 
@@ -120,12 +136,81 @@
     return "status-pending";
   }
 
+  function esc(s) {
+    if (!s) return "";
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* PLACEHOLDER_RENDER_MARKDOWN */
+
+  function renderMarkdown(text) {
+    if (!text) return `<p class="md-paragraph" style="color:var(--text-secondary)">${t("noData")}</p>`;
+    const lines = text.split("\n");
+    const parts = [];
+    let tableLines = [];
+    let listLines = [];
+
+    function flushTable() {
+      if (!tableLines.length) return;
+      const headers = tableLines[0].split("|").map((h) => h.trim()).filter(Boolean);
+      let html = `<table><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`;
+      for (let i = 2; i < tableLines.length; i++) {
+        const cells = tableLines[i].split("|").map((c) => c.trim()).filter(Boolean);
+        html += "<tr>";
+        cells.forEach((c, ci) => {
+          const isStatus = headers[ci] && /状态|Status/i.test(headers[ci]);
+          html += isStatus
+            ? `<td><span class="status-badge ${statusClass(c)}">${esc(c)}</span></td>`
+            : `<td>${esc(c)}</td>`;
+        });
+        html += "</tr>";
+      }
+      html += "</table>";
+      parts.push(html);
+      tableLines = [];
+    }
+
+    function flushList() {
+      if (!listLines.length) return;
+      parts.push(`<ul class="md-list">${listLines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`);
+      listLines = [];
+    }
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("|")) {
+        flushList();
+        tableLines.push(trimmed);
+        continue;
+      }
+      flushTable();
+      if (/^#{1,3} /.test(trimmed)) {
+        flushList();
+        parts.push(`<div class="md-heading">${esc(trimmed.replace(/^#{1,3}\s+/, ""))}</div>`);
+        continue;
+      }
+      if (trimmed.startsWith("- ")) {
+        listLines.push(trimmed.replace(/^-\s+/, ""));
+        continue;
+      }
+      flushList();
+      if (trimmed === "") continue;
+      parts.push(`<p class="md-paragraph">${esc(trimmed)}</p>`);
+    }
+    flushTable();
+    flushList();
+    return parts.join("");
+  }
+
+  /* PLACEHOLDER_SIDEBAR */
+
   function renderSidebar() {
     const sb = document.getElementById("sidebar");
     const items = [
-      { id: "nav-start", label: t("rawRequirement") },
-      { id: "nav-act", label: t("deliveryAct") },
+      { id: "nav-gm-okr", label: t("gmOkr") },
       { id: "nav-tree", label: t("roleTree") },
+      { id: "nav-hier-okr", label: t("hierarchicalOkr") },
+      { id: "nav-act", label: t("deliveryAct") },
       { id: "nav-status", label: t("statusBoard") },
       { id: "nav-events", label: t("events") },
       { id: "nav-reviews", label: t("reviews") },
@@ -134,34 +219,27 @@
       <div class="menu-title">${t("menu")}</div>
       <div class="menu-list">
         ${items.map((i) => `
-          <button class="menu-item ${activeNav === i.id ? "active" : ""}" type="button" onclick="scrollToSection('${i.id}')">
+          <button class="menu-item ${activeNav === i.id ? "active" : ""}" type="button" onclick="switchView('${i.id}')">
             <span>${i.label}</span>
           </button>
         `).join("")}
       </div>`;
   }
 
-  window.scrollToSection = function (id) {
+  window.switchView = function (id) {
     activeNav = id;
     renderSidebar();
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    const sections = document.querySelectorAll("#workspace > .section");
+    sections.forEach((el) => {
+      el.style.display = el.id === id ? "" : "none";
+    });
   };
 
+  /* PLACEHOLDER_RENDER_SECTIONS */
+
   function renderStartForm() {
-    if (state?.hasActive) {
-      return `<div class="section" id="nav-start">
-        <div class="section-title">${t("currentAct")}: ${state.currentAct || "?"}</div>
-        <div class="card">
-          <p>${state.sections?.requirement || state.sections?.gmOkr || t("noData")}</p>
-          <div style="margin-top:12px;display:flex;gap:8px">
-            <button class="btn btn-primary" onclick="doAction('continue')">${t("continueRun")}</button>
-            <button class="btn btn-secondary" onclick="doAction('restart')">${t("restart")}</button>
-            <button class="btn btn-secondary" onclick="doAction('cancel')">${t("cancel")}</button>
-          </div>
-        </div>
-      </div>`;
-    }
-    return `<div class="section" id="nav-start">
+    if (state?.hasActive) return "";
+    return `<div class="gm-subsection">
       <div class="tabs">
         <div class="tab ${inputMode === "raw" ? "active" : ""}" onclick="setMode('raw')">${t("rawRequirement")}</div>
         <div class="tab ${inputMode === "gm" ? "active" : ""}" onclick="setMode('gm')">${t("gmOkr")}</div>
@@ -177,32 +255,173 @@
     </div>`;
   }
 
-  function renderGmOkr() {
-    if (!state?.sections?.gmOkr) return "";
-    return `<div class="section">
-      <div class="section-title">${t("gmOkr")}</div>
-      <div class="card"><pre style="white-space:pre-wrap">${esc(state.sections.gmOkr)}</pre></div>
+  function renderBoundaryTag(type) {
+    const labels = { include: t("include"), exclude: t("exclude"), optional: t("optional") };
+    const cls = { include: "tag-include", exclude: "tag-exclude", optional: "tag-optional", plain: "tag-plain" };
+    return `<span class="boundary-tag ${cls[type] || "tag-plain"}">${labels[type] || ""}</span>`;
+  }
+
+  function renderRequirementBanner() {
+    if (!state?.hasActive) return "";
+    const req = state.sections?.requirement || "";
+    if (!req) return "";
+    return `<div class="requirement-banner">
+      <div class="req-label">${t("rawRequirement")}</div>
+      <div class="req-text">${esc(req)}</div>
+      <div class="req-actions">
+        <span class="act-badge">${t("currentAct")}: ${state.currentAct || "?"}</span>
+        <button class="btn btn-primary" onclick="doAction('continue')">${t("continueRun")}</button>
+        <button class="btn btn-secondary" onclick="doAction('restart')">${t("restart")}</button>
+        <button class="btn btn-secondary" onclick="doAction('cancel')">${t("cancel")}</button>
+      </div>
     </div>`;
   }
 
+  function renderPendingQuestions(questions) {
+    if (!questions || !questions.length) return "";
+    const items = questions.map((q, idx) => {
+      const name = `pq_${idx}`;
+      const hasSuggestions = q.suggestions && q.suggestions.length > 0;
+
+      let optionsHtml;
+      if (hasSuggestions) {
+        const options = q.suggestions.map((s, si) => {
+          const checked = pendingAnswers[idx] === s ? "checked" : "";
+          const recTag = si === 0 ? `<span class="recommend-tag">${t("recommend")}</span>` : "";
+          return `<label class="pending-option">
+            <input type="radio" name="${name}" value="${esc(s)}" ${checked} onchange="setPendingAnswer(${idx}, this.value)">
+            <span>${esc(s)}</span>${recTag}
+          </label>`;
+        }).join("");
+        const ignoreChecked = pendingAnswers[idx] === "__ignore__" ? "checked" : "";
+        const ignoreOpt = `<label class="pending-option is-ignore">
+          <input type="radio" name="${name}" value="__ignore__" ${ignoreChecked} onchange="setPendingAnswer(${idx}, '__ignore__')">
+          <span>${t("ignoreQuestion")}</span>
+        </label>`;
+        optionsHtml = `<div class="pending-options">${options}${ignoreOpt}</div>`;
+      } else {
+        const val = pendingAnswers[idx] || "";
+        optionsHtml = `<div class="pending-options">
+          <input type="text" class="pending-text-input" placeholder="${t("requirementPlaceholder")}" value="${esc(val)}" onchange="setPendingAnswer(${idx}, this.value)">
+          <label class="pending-option is-ignore" style="margin-top:4px">
+            <input type="radio" name="${name}" value="__ignore__" ${pendingAnswers[idx] === "__ignore__" ? "checked" : ""} onchange="setPendingAnswer(${idx}, '__ignore__')">
+            <span>${t("ignoreQuestion")}</span>
+          </label>
+        </div>`;
+      }
+
+      return `<div class="pending-question-item">
+        <div class="pending-question-text">${idx + 1}. ${esc(q.question)}</div>
+        ${optionsHtml}
+      </div>`;
+    }).join("");
+    return `<div class="gm-subsection">
+      <div class="section-title">${t("pendingQuestions")}</div>
+      <div class="card" style="padding:0">
+        ${items}
+        <div class="pending-submit-bar">
+          <button class="btn btn-primary" onclick="doRefineGm()">${t("submitRefine")}</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderGmOkr() {
+    const parsed = state?.gmOkrParsed;
+    const hasContent = parsed || state?.sections?.gmOkr;
+
+    if (!state?.hasActive && !hasContent) {
+      return `<div class="section" id="nav-gm-okr">
+        <div class="section-title">${t("gmOkr")}</div>
+        ${renderStartForm()}
+      </div>`;
+    }
+
+    if (!hasContent) {
+      return `<div class="section" id="nav-gm-okr">
+        <div class="section-title">${t("gmOkr")}</div>
+        ${renderRequirementBanner()}
+        <div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div>
+      </div>`;
+    }
+
+    if (!parsed) {
+      return `<div class="section" id="nav-gm-okr">
+        <div class="section-title">${t("gmOkr")}</div>
+        ${renderRequirementBanner()}
+        <div class="card md-content">${renderMarkdown(state.sections.gmOkr)}</div>
+      </div>`;
+    }
+
+    const krHeaders = parsed.keyResults.length > 0 ? Object.keys(parsed.keyResults[0]) : [];
+    const krRows = parsed.keyResults.map((kr) => {
+      return `<tr>${krHeaders.map((h) => {
+        const val = kr[h] || "";
+        const isStatus = /状态|Status/i.test(h);
+        return isStatus
+          ? `<td><span class="status-badge ${statusClass(val)}">${esc(val)}</span></td>`
+          : `<td>${esc(val)}</td>`;
+      }).join("")}</tr>`;
+    }).join("");
+
+    const boundaryItems = (parsed.boundaries || []).map((b) =>
+      `<li>${renderBoundaryTag(b.type)}${esc(b.text)}</li>`
+    ).join("");
+
+    return `<div class="section" id="nav-gm-okr">
+      <div class="section-title">${t("gmOkr")}</div>
+      ${renderRequirementBanner()}
+      <div class="objective-panel">
+        <div class="objective-label">${t("objective")}</div>
+        <div class="objective-text">${esc(parsed.objective)}</div>
+      </div>
+      ${parsed.keyResults.length ? `
+        <div class="gm-subsection">
+          <div class="section-title">${t("keyResults")}</div>
+          <table>
+            <tr>${krHeaders.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>
+            ${krRows}
+          </table>
+        </div>
+      ` : ""}
+      ${parsed.boundaries.length ? `
+        <div class="gm-subsection">
+          <div class="section-title">${t("boundaries")}</div>
+          <div class="card"><ul class="boundary-list">${boundaryItems}</ul></div>
+        </div>
+      ` : ""}
+      ${renderPendingQuestions(parsed.pendingQuestions)}
+    </div>`;
+  }
+
+  /* PLACEHOLDER_REST */
+
   function renderRoleTree() {
-    if (!state?.sections?.roleTree) return "";
+    if (!state?.sections?.roleTree) return `<div class="section" id="nav-tree"><div class="section-title">${t("roleTree")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
     return `<div class="section" id="nav-tree">
       <div class="section-title">${t("roleTree")}</div>
-      <div class="card"><pre style="white-space:pre-wrap;font-size:13px">${esc(state.sections.roleTree)}</pre></div>
+      <div class="card md-content">${renderMarkdown(state.sections.roleTree)}</div>
     </div>`;
   }
 
   function renderHierarchicalOkr() {
-    if (!state?.sections?.hierarchicalOkr) return "";
-    return `<div class="section">
+    if (!state?.sections?.hierarchicalOkr) return `<div class="section" id="nav-hier-okr"><div class="section-title">${t("hierarchicalOkr")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
+    return `<div class="section" id="nav-hier-okr">
       <div class="section-title">${t("hierarchicalOkr")}</div>
-      <div class="card"><pre style="white-space:pre-wrap;font-size:13px">${esc(state.sections.hierarchicalOkr)}</pre></div>
+      <div class="card md-content">${renderMarkdown(state.sections.hierarchicalOkr)}</div>
+    </div>`;
+  }
+
+  function renderDeliveryAct() {
+    if (!state?.sections?.deliveryPlan) return `<div class="section" id="nav-act"><div class="section-title">${t("deliveryAct")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
+    return `<div class="section" id="nav-act">
+      <div class="section-title">${t("deliveryAct")}</div>
+      <div class="card md-content">${renderMarkdown(state.sections.deliveryPlan)}</div>
     </div>`;
   }
 
   function renderStatusTable() {
-    if (!state?.statusRows?.length) return "";
+    if (!state?.statusRows?.length) return `<div class="section" id="nav-status"><div class="section-title">${t("statusBoard")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
     const rows = state.statusRows.map((r) => {
       const cls = r.kr === selectedKr ? "selected" : "";
       return `<tr class="${cls}" onclick="selectKr('${esc(r.kr)}')">
@@ -228,7 +447,7 @@
   }
 
   function renderEvents() {
-    if (!state?.events?.length) return "";
+    if (!state?.events?.length) return `<div class="section" id="nav-events"><div class="section-title">${t("events")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
     const items = [...state.events].reverse().map((e) =>
       `<div class="event-item">
         <span class="event-time">${e.time?.slice(0, 19) || ""}</span>
@@ -242,16 +461,8 @@
     </div>`;
   }
 
-  function renderDeliveryAct() {
-    if (!state?.sections?.deliveryPlan) return "";
-    return `<div class="section" id="nav-act">
-      <div class="section-title">${t("deliveryAct")}</div>
-      <div class="card"><pre style="white-space:pre-wrap;font-size:13px">${esc(state.sections.deliveryPlan)}</pre></div>
-    </div>`;
-  }
-
   function renderReviews() {
-    if (!state?.reviewFiles?.length) return "";
+    if (!state?.reviewFiles?.length) return `<div class="section" id="nav-reviews"><div class="section-title">${t("reviews")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
     return `<div class="section" id="nav-reviews">
       <div class="section-title">${t("reviews")}</div>
       <div class="card">${state.reviewFiles.map((f) => `<div>${esc(f)}</div>`).join("")}</div>
@@ -279,21 +490,20 @@
       </div>`;
   }
 
-  function esc(s) {
-    if (!s) return "";
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
   function render() {
     document.getElementById("lang-toggle").textContent = lang === "zh" ? "EN" : "中文";
     const projectName = state?.project?.name || "";
     document.getElementById("project-name").textContent = projectName ? `${t("project")}: ${projectName}` : "";
     document.getElementById("project-name").title = projectName;
     document.getElementById("current-act").textContent = state?.currentAct ? `${t("currentAct")}: ${state.currentAct}` : "";
+
+    if (state?.hasActive && state?.gmOkrParsed && activeNav === "nav-start") {
+      activeNav = "nav-gm-okr";
+    }
+
     renderSidebar();
     const ws = document.getElementById("workspace");
     ws.innerHTML = [
-      renderStartForm(),
       renderGmOkr(),
       renderRoleTree(),
       renderHierarchicalOkr(),
@@ -303,10 +513,38 @@
       renderReviews(),
     ].join("");
     renderDrawer();
+
+    const sections = ws.querySelectorAll(".section");
+    sections.forEach((el) => {
+      el.style.display = el.id === activeNav ? "" : "none";
+    });
   }
 
   window.setMode = function (m) { inputMode = m; render(); };
   window.selectKr = function (kr) { selectedKr = selectedKr === kr ? null : kr; render(); };
+
+  window.setPendingAnswer = function (idx, value) {
+    pendingAnswers[idx] = value;
+  };
+
+  window.doRefineGm = async function () {
+    const questions = state?.gmOkrParsed?.pendingQuestions || [];
+    const answers = questions.map((q, i) => ({
+      question: q.question,
+      answer: pendingAnswers[i] === "__ignore__" ? null : (pendingAnswers[i] || null),
+    }));
+    const result = await api("/api/refine-gm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+    });
+    if (result.mode === "manual") {
+      alert(`${t("manualHint")}\n\n${result.prompt}`);
+    } else if (result.command) {
+      alert(`${result.mode} command:\n\n${result.command}`);
+    }
+    pendingAnswers = {};
+  };
 
   window.doStart = async function () {
     let input;

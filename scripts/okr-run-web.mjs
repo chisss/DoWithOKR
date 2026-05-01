@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { readOkrState } from "./okr-run-web-state.mjs";
-import { startOkrRun, detectRunner } from "./okr-run-web-runner.mjs";
+import { startOkrRun, buildGmRefinePrompt, detectRunner } from "./okr-run-web-runner.mjs";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -110,6 +110,32 @@ export function createServer(options = {}) {
       req.on("end", () => {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
+      });
+      return;
+    }
+
+    if (pathname === "/api/refine-gm" && req.method === "POST") {
+      let body = "";
+      req.on("data", (c) => { body += c; });
+      req.on("end", () => {
+        try {
+          const { answers } = JSON.parse(body);
+          const currentState = getState();
+          const requirement = currentState.sections?.requirement || "";
+          const prompt = buildGmRefinePrompt(requirement, answers);
+          const runner = detectRunner();
+          let command;
+          if (runner.runner === "codex") {
+            command = `codex exec --full-auto -C ${JSON.stringify(projectRoot)} ${JSON.stringify(prompt)}`;
+          } else if (runner.runner === "claude") {
+            command = `claude -p ${JSON.stringify(prompt)} --cwd ${JSON.stringify(projectRoot)}`;
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ mode: runner.runner, prompt, command }));
+        } catch (e) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message }));
+        }
       });
       return;
     }
