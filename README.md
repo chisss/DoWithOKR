@@ -122,6 +122,7 @@ GM 总经理（甲方需求代理）
 | `okr-review-score` | 上级评分、经验提炼、周期归档 | "进行 OKR 评分复盘" |
 | `okr-next-cycle` | 建议下一轮方向，更新能力报告 | "进入下一轮" |
 | `okr-archive` | 手动归档当前周期并清理工作区 | "归档当前 OKR 周期" |
+| `okr-run-web` | 启动本地 Web 控制台，可视化 OKR 状态 | "打开 OKR 控制台" |
 
 ## 交付幕模型
 
@@ -313,8 +314,10 @@ GM 总经理
 DoWithOKR/                          # 插件源目录
   .claude-plugin/plugin.json        # Claude Code manifest
   .codex-plugin/plugin.json         # Codex manifest
-  skills/                           # 11 个技能入口（SKILL.md）
+  skills/                           # 12 个技能入口（SKILL.md）
   references/                       # 共享模板与规范
+  scripts/                          # 运行时脚本（okr-run-web 服务端）
+  web/okr-run-web/                  # Web 控制台静态资源
   examples/                         # 示例 OKR 工作流
   docs/                             # 产品文档与设计理念
   scripts/validate-plugin.mjs       # 插件校验脚本
@@ -323,10 +326,15 @@ DoWithOKR/                          # 插件源目录
 
 target-project/                     # 安装后的目标项目
   .claude/commands/okr-*.md         # Claude Code slash commands（复制）
+  .claude/dowithokr/                # okr-run-web 运行时（复制）
+    scripts/                        # 服务端脚本
+    web/okr-run-web/                # 静态资源
   .codex-plugin/
     plugin.json                     # Codex 插件描述（复制）
     skills/ → DoWithOKR/skills/     # symlink 到源目录
     references/ → DoWithOKR/refs/   # symlink 到源目录
+    scripts/ → DoWithOKR/scripts/   # symlink 到源目录
+    web/ → DoWithOKR/web/           # symlink 到源目录
   CLAUDE.md                         # 追加路由规则
   .okr/                             # 运行时产出（技能自动创建）
 ```
@@ -344,6 +352,26 @@ cd DoWithOKR && node scripts/validate-plugin.mjs
 - 技能间通过 `.okr/` 状态文件传递上下文
 - 支持断点续跑：中断后重新触发 `okr-run` 自动恢复
 - 周期归档：M4 评分复盘后自动归档并清理工作区，wisdom/ 跨周期保留
+
+## Web 控制台
+
+`okr-run-web` 提供本地 Web 控制台，是 `okr-run` 的可视化入口，不替代命令行流程。
+
+```bash
+# Claude Code
+/okr-run-web
+
+# 或直接运行
+node scripts/okr-run-web.mjs --project /path/to/your/project
+```
+
+启动后自动打开浏览器，支持：
+
+- 两种输入模式：原始需求（甲方）和 GM OKR（GM 身份）
+- 实时展示角色树、层级 OKR、KR 关联、状态看板、执行日志
+- 中英文切换
+- 断点续跑
+- 子技能完成后自动刷新页面
 
 ## Roadmap
 

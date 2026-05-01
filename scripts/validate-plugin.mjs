@@ -13,7 +13,8 @@ const skills = [
   "okr-status-tracker",
   "okr-alignment-check",
   "okr-review-score",
-  "okr-next-cycle"
+  "okr-next-cycle",
+  "okr-run-web"
 ];
 const refs = [
   "gm-okr-template.md",
@@ -198,6 +199,12 @@ assert.ok(docs.includes("GM OKR"));
 // --- 7. 安装脚本校验（保持原有逻辑） ---
 exists("install.sh");
 exists("uninstall.sh");
+
+// --- 8. okr-run-web 运行时资源校验 ---
+exists("scripts/okr-run-web.mjs");
+exists("scripts/okr-run-web-state.mjs");
+exists("scripts/okr-run-web-runner.mjs");
+exists("web/okr-run-web/index.html");
 
 // --- 汇总错误并输出 ---
 const allSkillErrors = Object.entries(errorsBySkill);

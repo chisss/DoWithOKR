@@ -42,6 +42,13 @@ else
   echo "  $removed skill file(s) removed."
 fi
 
+# Remove runtime scripts and web assets
+CC_DOWITHOKR="$TARGET_DIR/.claude/dowithokr"
+if [ -d "$CC_DOWITHOKR" ]; then
+  rm -rf "$CC_DOWITHOKR"
+  echo "  Removed: .claude/dowithokr/"
+fi
+
 if [ -f "$CLAUDE_MD" ]; then
   if grep -qF "$ROUTING_MARKER" "$CLAUDE_MD"; then
     tmp_file="$(mktemp)"
@@ -107,6 +114,14 @@ else
     if [ -L "$CODEX_PLUGIN_DIR/references" ]; then
       rm "$CODEX_PLUGIN_DIR/references"
       echo "  Removed: .codex-plugin/references symlink"
+    fi
+    if [ -L "$CODEX_PLUGIN_DIR/scripts" ]; then
+      rm "$CODEX_PLUGIN_DIR/scripts"
+      echo "  Removed: .codex-plugin/scripts symlink"
+    fi
+    if [ -L "$CODEX_PLUGIN_DIR/web" ]; then
+      rm "$CODEX_PLUGIN_DIR/web"
+      echo "  Removed: .codex-plugin/web symlink"
     fi
 
     # 删除 plugin.json

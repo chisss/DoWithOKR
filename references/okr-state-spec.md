@@ -441,3 +441,27 @@ okr-archive ──读取 active.md + status.md──归档──> archive/<date>
 | act | string | 评分对应的交付幕，仅 reviews/ |
 | archived_at | string | 归档日期 YYYY-MM-DD，仅 archive/ 文件 |
 | archived_reason | string | 归档原因（如 `user-restart`），仅 archive/ 文件 |
+
+## Web 事件文件（`.okr/web/events.jsonl`）
+
+`okr-run` 编排器在每个子技能调用完成后，追加一行 JSON 到 `.okr/web/events.jsonl`。该文件仅用于通知 `okr-run-web` 控制台刷新页面，`.okr/` 状态文件仍是唯一数据源。
+
+```json
+{"time":"2026-05-01T10:00:00+08:00","skill":"okr-gm","act":"M0","status":"completed","changed":[".okr/active.md"],"summary":"GM OKR 已生成"}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| time | string | 是 | ISO 8601 时间戳 |
+| skill | string | 是 | 子技能名称 |
+| act | string | 是 | 当前交付幕（M0-M4） |
+| role | string | 否 | 执行角色缩写 |
+| status | string | 是 | `completed` / `failed` / `skipped` |
+| changed | string[] | 否 | 本次修改的 `.okr/` 文件路径 |
+| summary | string | 是 | 一句话摘要 |
+
+规则：
+- 目录 `.okr/web/` 不存在时自动创建。
+- 事件文件为追加写入，不覆盖。
+- 事件不影响 `.okr/` 状态文件的读写逻辑。
+- 归档时 `.okr/web/` 不纳入归档范围，可安全删除。

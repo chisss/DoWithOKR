@@ -125,6 +125,7 @@ Scoring chain: GM → PD + ArchD, PD → PM + UI + TW, ArchD → BE + FE + QA + 
 | `okr-review-score` | Score review + experience distillation + cycle archive | "Run OKR score review" |
 | `okr-next-cycle` | Next cycle recommendation + capability report | "Move to the next cycle" |
 | `okr-archive` | Manually archive current cycle and clean workspace | "Archive current OKR cycle" |
+| `okr-run-web` | Launch local Web console to visualize OKR state | "Open OKR console" |
 
 ## Delivery Act Model
 
@@ -316,8 +317,10 @@ See the full example in [examples/login-access-okr.md](examples/login-access-okr
 DoWithOKR/                          # Plugin source directory
   .claude-plugin/plugin.json        # Claude Code manifest
   .codex-plugin/plugin.json         # Codex manifest
-  skills/                           # 11 skill entry points (SKILL.md)
+  skills/                           # 12 skill entry points (SKILL.md)
   references/                       # Shared templates & specs
+  scripts/                          # Runtime scripts (okr-run-web server)
+  web/okr-run-web/                  # Web console static assets
   examples/                         # Sample OKR workflows
   docs/                             # Product docs & design philosophy
   scripts/validate-plugin.mjs       # Plugin validation script
@@ -326,10 +329,15 @@ DoWithOKR/                          # Plugin source directory
 
 target-project/                     # Target project after install
   .claude/commands/okr-*.md         # Claude Code slash commands (copied)
+  .claude/dowithokr/                # okr-run-web runtime (copied)
+    scripts/                        # Server-side scripts
+    web/okr-run-web/                # Static assets
   .codex-plugin/
     plugin.json                     # Codex plugin descriptor (copied)
     skills/ → DoWithOKR/skills/     # symlink to source
     references/ → DoWithOKR/refs/   # symlink to source
+    scripts/ → DoWithOKR/scripts/   # symlink to source
+    web/ → DoWithOKR/web/           # symlink to source
   CLAUDE.md                         # Routing rules appended
   .okr/                             # Runtime output (created by skills)
 ```
@@ -347,6 +355,26 @@ cd DoWithOKR && node scripts/validate-plugin.mjs
 - Skills communicate via `.okr/` state files for cross-invocation context
 - Supports resume from checkpoint: re-trigger `okr-run` after interruption to auto-resume
 - Cycle archive: after M4 score review, automatically archives and cleans workspace; wisdom/ is preserved across cycles
+
+## Web Console
+
+`okr-run-web` provides a local Web console as a visual entry point for `okr-run`. It does not replace the command-line flow.
+
+```bash
+# Claude Code
+/okr-run-web
+
+# Or run directly
+node scripts/okr-run-web.mjs --project /path/to/your/project
+```
+
+Opens a browser automatically with support for:
+
+- Two input modes: Raw Requirement (client) and GM OKR (GM role)
+- Real-time display of role tree, hierarchical OKR, KR relations, status board, event log
+- Chinese / English toggle
+- Resume from checkpoint
+- Auto-refresh after each skill step completes
 
 ## Roadmap
 

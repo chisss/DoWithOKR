@@ -52,6 +52,20 @@ done
 
 echo "  $cc_copied skill(s) installed into .claude/commands/"
 
+# Runtime scripts for okr-run-web
+CC_SCRIPTS_DIR="$TARGET_DIR/.claude/dowithokr/scripts"
+CC_WEB_DIR="$TARGET_DIR/.claude/dowithokr/web/okr-run-web"
+mkdir -p "$CC_SCRIPTS_DIR" "$CC_WEB_DIR"
+for f in "$PLUGIN_DIR"/scripts/okr-run-web*.mjs; do
+  [ -f "$f" ] || continue
+  cp "$f" "$CC_SCRIPTS_DIR/"
+  echo "  Installed: .claude/dowithokr/scripts/$(basename "$f")"
+done
+if [ -d "$PLUGIN_DIR/web/okr-run-web" ]; then
+  cp "$PLUGIN_DIR"/web/okr-run-web/* "$CC_WEB_DIR/" 2>/dev/null || true
+  echo "  Installed: .claude/dowithokr/web/okr-run-web/"
+fi
+
 if [ -f "$ROUTING_FILE" ]; then
   if [ -f "$CLAUDE_MD" ]; then
     if grep -qF "$ROUTING_MARKER" "$CLAUDE_MD"; then
@@ -121,6 +135,28 @@ else
   else
     ln -sf "$REFS_DIR" "$CODEX_PLUGIN_DIR/references"
     echo "  Linked:    .codex-plugin/references → $REFS_DIR"
+  fi
+
+  # scripts/ symlink for okr-run-web runtime
+  if [ -L "$CODEX_PLUGIN_DIR/scripts" ]; then
+    rm "$CODEX_PLUGIN_DIR/scripts"
+  fi
+  if [ -d "$CODEX_PLUGIN_DIR/scripts" ] && [ ! -L "$CODEX_PLUGIN_DIR/scripts" ]; then
+    echo "  [WARN] .codex-plugin/scripts/ is a real directory. Skipping symlink."
+  else
+    ln -sf "$PLUGIN_DIR/scripts" "$CODEX_PLUGIN_DIR/scripts"
+    echo "  Linked:    .codex-plugin/scripts → $PLUGIN_DIR/scripts"
+  fi
+
+  # web/ symlink for okr-run-web assets
+  if [ -L "$CODEX_PLUGIN_DIR/web" ]; then
+    rm "$CODEX_PLUGIN_DIR/web"
+  fi
+  if [ -d "$CODEX_PLUGIN_DIR/web" ] && [ ! -L "$CODEX_PLUGIN_DIR/web" ]; then
+    echo "  [WARN] .codex-plugin/web/ is a real directory. Skipping symlink."
+  else
+    ln -sf "$PLUGIN_DIR/web" "$CODEX_PLUGIN_DIR/web"
+    echo "  Linked:    .codex-plugin/web → $PLUGIN_DIR/web"
   fi
 
   # AGENTS.md routing rules

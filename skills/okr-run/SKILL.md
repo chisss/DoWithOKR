@@ -153,3 +153,16 @@ description: Run the full DoWithOKR workflow from client need to GM OKR, role tr
 - 本技能通过调用子技能间接写入所有 `.okr/` 文件。
 - 每个子技能调用后验证其产出文件已正确写入。
 - 更新 `.okr/active.md` frontmatter 的 `current_act` 为当前执行到的交付幕。
+- **Web 事件发射**：每个子技能调用完成后，追加一行 JSON 到 `.okr/web/events.jsonl`（目录不存在时自动创建）。事件格式：
+  ```json
+  {
+    "time": "2026-05-01T10:00:00+08:00",
+    "skill": "okr-role-run",
+    "act": "M3",
+    "role": "BE",
+    "status": "completed",
+    "changed": [".okr/status.md", ".okr/evidence/BE-KR1.md"],
+    "summary": "BE-KR1 已完成接口实现"
+  }
+  ```
+  `status` 取值：`completed`、`failed`、`skipped`。`.okr/` 文件仍是唯一状态源，事件仅用于通知 Web 控制台刷新。
