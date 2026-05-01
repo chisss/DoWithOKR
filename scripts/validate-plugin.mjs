@@ -3,19 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-const skills = [
-  "okr-run",
-  "okr-gm",
-  "okr-role-splitter",
-  "okr-planner",
-  "okr-execution-plan",
-  "okr-role-run",
-  "okr-status-tracker",
-  "okr-alignment-check",
-  "okr-review-score",
-  "okr-next-cycle",
-  "okr-run-web"
-];
+const skills = fs.readdirSync(path.join(root, "skills"))
+  .filter((name) => fs.existsSync(path.join(root, "skills", name, "SKILL.md")))
+  .sort();
 const refs = [
   "gm-okr-template.md",
   "role-tree-template.md",
