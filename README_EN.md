@@ -2,15 +2,26 @@
 
 [简体中文](README.md)
 
-> Drive value delivery through OKR-powered AI teams. A multi-skill workflow plugin for Claude Code and Codex.
+> Agent Delivery OS for Claude Code and Codex: turn a requirement into an OKR-aligned AI team workflow with roles, evidence, scoring, and reusable wisdom.
+
+## Why DoWithOKR
+
+DoWithOKR is not an OKR tracker and not a task list. It is an **Agent Delivery OS**: a local protocol that moves AI coding from "executing actions" to "delivering value."
+
+Regular coding agents can produce many code changes without clear answers to the questions that matter: which goal does this serve, what is the acceptance standard, where is the evidence, and will the next cycle get better? DoWithOKR turns those questions into a protocol.
+
+**The user is the client, GM is the requirement proxy, and AI plays a full product-engineering team.** A requirement flows through GM OKR, role decomposition, delivery acts, evidence collection, manager scoring, and wisdom distillation until it becomes a verifiable delivery result.
+
+### How It Differs From Regular AI Project Management
+
+| Common tools | DoWithOKR |
+| --- | --- |
+| Track tasks and status | Defines goals, roles, evidence, and scoring |
+| AI helps write plans or summaries | AI roles deliver against OKRs and leave evidence |
+| Focus on "what got done" | Focuses on "what value shipped, to what standard" |
+| State lives in a platform database | State lives in the local `.okr/` file protocol |
 
 ## Design Philosophy
-
-DoWithOKR is not a task management tool — it is a **value alignment engine**.
-
-The daily work of engineering teams is fundamentally about "executing actions" — writing code, fixing bugs, running integrations. But the OKR framework asks a different question: not "what did you do?" but **what value did you deliver, and to what standard?** DoWithOKR is built around this core insight.
-
-**The user is the client, GM is the requirement proxy, and AI plays a full product-engineering team.** Requirements flow through OKR translation, role decomposition, delivery acts, and converge into verifiable deliverables with scores.
 
 ### Five Design Tenets
 
@@ -149,7 +160,7 @@ DoWithOKR replaces real-world time periods with evidence-gated "delivery acts":
 ### One-Command Install
 
 ```bash
-git clone https://github.com/<your-username>/DoWithOKR.git
+git clone https://github.com/chisss/DoWithOKR.git
 cd DoWithOKR
 ./install.sh /path/to/your/project
 ```
@@ -159,7 +170,7 @@ cd DoWithOKR
 | Platform | What It Does | Install Location |
 | --- | --- | --- |
 | Claude Code | Copies SKILL.md as slash commands, appends routing rules | `.claude/commands/okr-*.md` + `CLAUDE.md` |
-| Codex CLI | Creates plugin directory, symlinks skills and reference templates | `.codex-plugin/plugin.json` + `skills/` + `references/` |
+| Codex CLI | Creates a project-local marketplace and symlinks skills, references, scripts, and Web assets | `.agents/plugins/marketplace.json` + `.agents/plugins/plugins/dowithokr/` |
 
 Installation is idempotent — running it again skips already-installed content.
 
@@ -176,7 +187,7 @@ Cleans up both Claude Code and Codex CLI artifacts. Only removes DoWithOKR's own
 **1. Install**
 
 ```bash
-git clone https://github.com/<your-username>/DoWithOKR.git
+git clone https://github.com/chisss/DoWithOKR.git
 cd DoWithOKR && ./install.sh /path/to/your/project
 ```
 
@@ -332,8 +343,9 @@ target-project/                     # Target project after install
   .claude/dowithokr/                # okr-run-web runtime (copied)
     scripts/                        # Server-side scripts
     web/okr-run-web/                # Static assets
-  .codex-plugin/
-    plugin.json                     # Codex plugin descriptor (copied)
+  .agents/plugins/marketplace.json  # Project-local Codex marketplace
+  .agents/plugins/plugins/dowithokr/
+    .codex-plugin/plugin.json       # Codex plugin descriptor (copied)
     skills/ → DoWithOKR/skills/     # symlink to source
     references/ → DoWithOKR/refs/   # symlink to source
     scripts/ → DoWithOKR/scripts/   # symlink to source

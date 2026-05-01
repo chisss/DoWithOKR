@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildRunPrompt, detectRunner, startOkrRun } from "./okr-run-web-runner.mjs";
+import { buildRunPrompt, detectRunner, startOkrRun, buildRunnerCommand } from "./okr-run-web-runner.mjs";
 
 // --- buildRunPrompt 测试 ---
 const rawPrompt = buildRunPrompt({ mode: "raw", requirement: "做登录模块" });
@@ -52,7 +52,34 @@ const claudeResult = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录
 assert.equal(claudeResult.mode, "claude");
 assert.ok(claudeResult.command.includes("claude"));
 
+// runner 命令参数必须可结构化执行，避免只能展示不能运行
+const codexCommand = buildRunnerCommand("codex", tmpRoot, rawPrompt);
+assert.deepEqual(codexCommand.args.slice(0, 3), ["exec", "--full-auto", "-C"]);
+assert.equal(codexCommand.args[3], tmpRoot);
+assert.equal(codexCommand.args[4], rawPrompt);
+
+// 非 dryRun 时必须真实启动 runner 进程并记录事件
+const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-bin-"));
+const marker = path.join(tmpRoot, "runner-called.json");
+fs.writeFileSync(path.join(fakeBin, "codex"), [
+  "#!/bin/sh",
+  `printf '%s\\n' "$@" > ${JSON.stringify(marker)}`
+].join("\n"), { mode: 0o755 });
+const spawned = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, {
+  env: { PATH: fakeBin },
+});
+assert.equal(spawned.mode, "codex");
+assert.ok(spawned.pid > 0);
+for (let i = 0; i < 10 && !fs.existsSync(marker); i++) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+assert.ok(fs.existsSync(marker), "runner process should be invoked");
+const spawnedArgs = fs.readFileSync(marker, "utf8");
+assert.ok(spawnedArgs.includes("exec"));
+assert.ok(fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8").includes("started"));
+
 // 清理
 fs.rmSync(tmpRoot, { recursive: true, force: true });
+fs.rmSync(fakeBin, { recursive: true, force: true });
 
 console.log("All runner tests passed");

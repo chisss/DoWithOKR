@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { appendWebEvent } from "./okr-run-web-state.mjs";
@@ -19,6 +19,19 @@ export function buildRunPrompt(input) {
   return `使用 okr-run 技能运行这个需求：${input.requirement}`;
 }
 
+function findExecutable(name, env = process.env) {
+  const searchPath = env.PATH || process.env.PATH || "";
+  return searchPath.split(path.delimiter).some((dir) => {
+    const candidate = path.join(dir, name);
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
 /**
  * 检测可用的 runner：DOWITHOKR_RUNNER > codex > claude > manual
  */
@@ -26,15 +39,33 @@ export function detectRunner(env = process.env) {
   if (env.DOWITHOKR_RUNNER) {
     return { runner: env.DOWITHOKR_RUNNER };
   }
-  try {
-    execSync("which codex", { env, stdio: "ignore" });
+  if (findExecutable("codex", env)) {
     return { runner: "codex" };
-  } catch {}
-  try {
-    execSync("which claude", { env, stdio: "ignore" });
+  }
+  if (findExecutable("claude", env)) {
     return { runner: "claude" };
-  } catch {}
+  }
   return { runner: "manual" };
+}
+
+export function buildRunnerCommand(runner, projectRoot, prompt) {
+  if (runner === "codex") {
+    const args = ["exec", "--full-auto", "-C", projectRoot, prompt];
+    return {
+      command: "codex",
+      args,
+      display: `codex exec --full-auto -C ${JSON.stringify(projectRoot)} ${JSON.stringify(prompt)}`,
+    };
+  }
+  if (runner === "claude") {
+    const args = ["-p", prompt, "--cwd", projectRoot];
+    return {
+      command: "claude",
+      args,
+      display: `claude -p ${JSON.stringify(prompt)} --cwd ${JSON.stringify(projectRoot)}`,
+    };
+  }
+  return { command: null, args: [], display: null };
 }
 
 /**
@@ -55,39 +86,63 @@ export function buildGmRefinePrompt(requirement, answers) {
   ].join("\n");
 }
 
-/**
- * 启动 okr-run 执行
- */
-export function startOkrRun(projectRoot, input, options = {}) {
-  const runner = options.runner || detectRunner().runner;
-  const prompt = buildRunPrompt(input);
+function startPrompt(projectRoot, prompt, act, options = {}) {
+  const env = options.env || process.env;
+  const runner = options.runner || detectRunner(env).runner;
   const dryRun = options.dryRun || false;
 
   if (runner === "manual") {
     appendWebEvent(projectRoot, {
       skill: "okr-run-web",
-      act: "M0",
+      act,
       status: "manual-required",
       summary: "No runner available. Copy the prompt and run manually.",
     });
     return { mode: "manual", prompt, command: null };
   }
 
-  let command;
-  if (runner === "codex") {
-    command = `codex exec --full-auto -C ${JSON.stringify(projectRoot)} ${JSON.stringify(prompt)}`;
-  } else {
-    command = `claude -p ${JSON.stringify(prompt)} --cwd ${JSON.stringify(projectRoot)}`;
-  }
-
-  if (!dryRun) {
+  const command = buildRunnerCommand(runner, projectRoot, prompt);
+  if (!command.command) {
     appendWebEvent(projectRoot, {
       skill: "okr-run-web",
-      act: "M0",
-      status: "started",
-      summary: `Runner: ${runner}`,
+      act,
+      status: "manual-required",
+      summary: `Unsupported runner: ${runner}`,
     });
+    return { mode: "manual", prompt, command: null };
   }
 
-  return { mode: runner, prompt, command };
+  if (dryRun) {
+    return { mode: runner, prompt, command: command.display };
+  }
+
+  const child = spawn(command.command, command.args, {
+    cwd: projectRoot,
+    env: { ...process.env, ...env },
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+
+  appendWebEvent(projectRoot, {
+    skill: "okr-run-web",
+    act,
+    status: "started",
+    summary: `Runner: ${runner}`,
+  });
+
+  return { mode: runner, prompt, command: command.display, pid: child.pid };
+}
+
+export function startRunnerPrompt(projectRoot, prompt, options = {}) {
+  return startPrompt(projectRoot, prompt, options.act || "M0", options);
+}
+
+/**
+ * 启动 okr-run 执行
+ */
+export function startOkrRun(projectRoot, input, options = {}) {
+  const prompt = buildRunPrompt(input);
+  const act = input.mode === "gm" ? "M1" : "M0";
+  return startPrompt(projectRoot, prompt, act, options);
 }

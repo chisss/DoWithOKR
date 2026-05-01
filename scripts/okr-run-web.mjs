@@ -2,8 +2,8 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { readOkrState } from "./okr-run-web-state.mjs";
-import { startOkrRun, buildGmRefinePrompt, detectRunner } from "./okr-run-web-runner.mjs";
+import { appendWebEvent, readOkrState, writeUserGmOkr } from "./okr-run-web-state.mjs";
+import { startOkrRun, startRunnerPrompt, buildGmRefinePrompt, detectRunner } from "./okr-run-web-runner.mjs";
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -29,9 +29,12 @@ export function createServer(options = {}) {
   const projectName = path.basename(path.resolve(projectRoot)) || projectRoot;
   const token = options.token || crypto.randomBytes(18).toString("hex");
   const openBrowser = options.openBrowser !== false;
+  const noRunner = options.noRunner === true;
+  const runnerEnv = options.runnerEnv || process.env;
   const webDir = resolveWebDir();
   const sseClients = new Set();
   let watcher = null;
+  let projectWatcher = null;
   let debounceTimer = null;
 
   function checkToken(req) {
@@ -57,6 +60,7 @@ export function createServer(options = {}) {
   }
 
   function startWatcher() {
+    if (watcher) return;
     const okrDir = path.join(projectRoot, ".okr");
     if (!fs.existsSync(okrDir)) return;
     try {
@@ -65,6 +69,87 @@ export function createServer(options = {}) {
         debounceTimer = setTimeout(broadcastSnapshot, 250);
       });
     } catch {}
+  }
+
+  function startProjectWatcher() {
+    if (projectWatcher) return;
+    try {
+      projectWatcher = fs.watch(projectRoot, (_event, filename) => {
+        if (filename !== ".okr") return;
+        startWatcher();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(broadcastSnapshot, 250);
+      });
+    } catch {}
+  }
+
+  function getRunner() {
+    return noRunner ? { runner: "manual" } : detectRunner(runnerEnv);
+  }
+
+  function runInput(input) {
+    const result = startOkrRun(projectRoot, input, {
+      ...getRunner(),
+      env: runnerEnv,
+    });
+    startWatcher();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(broadcastSnapshot, 50);
+    return result;
+  }
+
+  function archiveName(dir, baseName) {
+    const ext = path.extname(baseName);
+    const stem = baseName.slice(0, -ext.length);
+    const today = new Date().toISOString().slice(0, 10);
+    let candidate = `${today}-${baseName}`;
+    let index = 2;
+    while (fs.existsSync(path.join(dir, candidate))) {
+      candidate = `${today}-${stem}-${index}${ext}`;
+      index++;
+    }
+    return candidate;
+  }
+
+  function archiveCurrentState() {
+    const okrDir = path.join(projectRoot, ".okr");
+    const archiveDir = path.join(okrDir, "archive");
+    fs.mkdirSync(archiveDir, { recursive: true });
+    const archived = [];
+    for (const name of ["active.md", "status.md"]) {
+      const src = path.join(okrDir, name);
+      if (!fs.existsSync(src)) continue;
+      const destName = archiveName(archiveDir, name);
+      fs.copyFileSync(src, path.join(archiveDir, destName));
+      fs.rmSync(src, { force: true });
+      archived.push(path.join(".okr", "archive", destName));
+    }
+    appendWebEvent(projectRoot, {
+      skill: "okr-run-web",
+      act: "M0",
+      status: "restarted",
+      changed: archived,
+      summary: "Current OKR state archived for restart.",
+    });
+    return archived;
+  }
+
+  function safeStaticPath(pathname) {
+    let decoded;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch {
+      return null;
+    }
+    const relative = decoded === "/" || decoded === "/index.html"
+      ? "index.html"
+      : decoded.startsWith("/assets/")
+        ? decoded.slice(8)
+        : decoded.slice(1);
+    const resolved = path.resolve(webDir, relative);
+    const root = path.resolve(webDir);
+    if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) return null;
+    return resolved;
   }
 
   const server = http.createServer((req, res) => {
@@ -92,8 +177,10 @@ export function createServer(options = {}) {
       req.on("end", () => {
         try {
           const input = JSON.parse(body);
-          const runner = detectRunner();
-          const result = startOkrRun(projectRoot, input, { ...runner, dryRun: true });
+          if (input.mode === "gm") {
+            writeUserGmOkr(projectRoot, input);
+          }
+          const result = runInput(input);
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(result));
         } catch (e) {
@@ -108,8 +195,44 @@ export function createServer(options = {}) {
       let body = "";
       req.on("data", (c) => { body += c; });
       req.on("end", () => {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true }));
+        try {
+          const { action, requirement = "" } = JSON.parse(body || "{}");
+          let result;
+          if (action === "continue") {
+            result = runInput({
+              mode: "raw",
+              requirement: "从 .okr/active.md 的 current_act 断点继续执行当前 OKR 周期，不重新开始。",
+            });
+          } else if (action === "restart") {
+            const previousRequirement = getState().sections?.requirement || "";
+            const archived = archiveCurrentState();
+            result = {
+              ...runInput({
+                mode: "raw",
+                requirement: requirement || previousRequirement || "重新开始当前 OKR 周期。",
+              }),
+              archived,
+            };
+          } else if (action === "cancel") {
+            appendWebEvent(projectRoot, {
+              skill: "okr-run-web",
+              act: getState().currentAct || "",
+              status: "cancelled",
+              summary: "User cancelled the current web action.",
+            });
+            result = { ok: true, status: "cancelled" };
+            broadcastSnapshot();
+          } else {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: `unsupported action: ${action}` }));
+            return;
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message }));
+        }
       });
       return;
     }
@@ -123,15 +246,13 @@ export function createServer(options = {}) {
           const currentState = getState();
           const requirement = currentState.sections?.requirement || "";
           const prompt = buildGmRefinePrompt(requirement, answers);
-          const runner = detectRunner();
-          let command;
-          if (runner.runner === "codex") {
-            command = `codex exec --full-auto -C ${JSON.stringify(projectRoot)} ${JSON.stringify(prompt)}`;
-          } else if (runner.runner === "claude") {
-            command = `claude -p ${JSON.stringify(prompt)} --cwd ${JSON.stringify(projectRoot)}`;
-          }
+          const result = startRunnerPrompt(projectRoot, prompt, {
+            ...getRunner(),
+            env: runnerEnv,
+            act: "M0",
+          });
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ mode: runner.runner, prompt, command }));
+          res.end(JSON.stringify(result));
         } catch (e) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: e.message }));
@@ -161,11 +282,12 @@ export function createServer(options = {}) {
         res.end("Forbidden");
         return;
       }
-      filePath = path.join(webDir, "index.html");
-    } else if (pathname.startsWith("/assets/")) {
-      filePath = path.join(webDir, pathname.slice(8));
-    } else {
-      filePath = path.join(webDir, pathname);
+    }
+    filePath = safeStaticPath(pathname);
+    if (!filePath) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Forbidden");
+      return;
     }
 
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -178,38 +300,44 @@ export function createServer(options = {}) {
     }
   });
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const preferredPort = options.port === 0 ? 0 : (options.port || 3767);
-    server.listen(preferredPort, "127.0.0.1", () => {
+
+    function close() {
+      return new Promise((r) => {
+        if (watcher) watcher.close();
+        if (projectWatcher) projectWatcher.close();
+        for (const c of sseClients) { try { c.end(); } catch {} }
+        server.close(r);
+      });
+    }
+
+    function finishListen() {
       const port = server.address().port;
       startWatcher();
+      startProjectWatcher();
       if (openBrowser) {
-        const url = `http://127.0.0.1:${port}/?token=${token}`;
-        console.log(`DoWithOKR Web: ${url}`);
+        const appUrl = `http://127.0.0.1:${port}/?token=${token}`;
+        console.log(`DoWithOKR Web: ${appUrl}`);
         import("node:child_process").then(({ exec }) => {
-          exec(`open ${JSON.stringify(url)}`);
+          exec(`open ${JSON.stringify(appUrl)}`);
         });
       }
-      resolve({
-        server,
-        token,
-        port,
-        close: () => new Promise((r) => {
-          if (watcher) watcher.close();
-          for (const c of sseClients) { try { c.end(); } catch {} }
-          server.close(r);
-        }),
+      resolve({ server, token, port, close });
+    }
+
+    function listen(port) {
+      server.once("error", (e) => {
+        if (e.code === "EADDRINUSE" && port !== 0) {
+          listen(port + 1);
+          return;
+        }
+        reject(e);
       });
-    });
-    server.on("error", (e) => {
-      if (e.code === "EADDRINUSE" && preferredPort !== 0) {
-        server.listen(0, "127.0.0.1", () => {
-          const port = server.address().port;
-          startWatcher();
-          resolve({ server, token, port, close: () => new Promise((r) => { if (watcher) watcher.close(); server.close(r); }) });
-        });
-      }
-    });
+      server.listen(port, "127.0.0.1", finishListen);
+    }
+
+    listen(preferredPort);
   });
 }
 
@@ -226,5 +354,5 @@ if (process.argv[1] && process.argv[1].endsWith("okr-run-web.mjs")) {
   const projectRoot = projectIdx >= 0 ? args[projectIdx + 1] : process.cwd();
   const noRunner = args.includes("--no-runner");
   const openBrowser = !args.includes("--no-browser");
-  startServer({ projectRoot, openBrowser });
+  startServer({ projectRoot, openBrowser, noRunner });
 }

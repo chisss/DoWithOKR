@@ -22,8 +22,9 @@ description: Launch a local bilingual Web console for DoWithOKR, accepting raw r
 - Node.js 运行时可用（v18+）。
 - 运行时脚本存在于以下位置之一：
   1. `.claude/dowithokr/scripts/okr-run-web.mjs`（Claude Code 安装）
-  2. `.codex-plugin/scripts/okr-run-web.mjs`（Codex 安装）
-  3. 插件源目录 `scripts/okr-run-web.mjs`（开发模式）
+  2. `.agents/plugins/plugins/dowithokr/scripts/okr-run-web.mjs`（Codex 安装）
+  3. `.codex-plugin/scripts/okr-run-web.mjs`（旧版 Codex 安装）
+  4. 插件源目录 `scripts/okr-run-web.mjs`（开发模式）
 - 缺失处理：提示用户运行 `install.sh` 安装运行时资源。
 
 ## 前置读取
@@ -44,7 +45,7 @@ description: Launch a local bilingual Web console for DoWithOKR, accepting raw r
 
 ## 执行步骤
 
-1. 定位运行时脚本：按优先级检查 `.claude/dowithokr/scripts/okr-run-web.mjs`、`.codex-plugin/scripts/okr-run-web.mjs`、插件源 `scripts/okr-run-web.mjs`。
+1. 定位运行时脚本：按优先级检查 `.claude/dowithokr/scripts/okr-run-web.mjs`、`.agents/plugins/plugins/dowithokr/scripts/okr-run-web.mjs`、`.codex-plugin/scripts/okr-run-web.mjs`、插件源 `scripts/okr-run-web.mjs`。
 2. 启动本地服务：`node <script> --project <cwd>`。
 3. 服务自动探测可用端口（从 3767 开始），生成 token，打开浏览器。
 4. 终端输出访问 URL：`http://127.0.0.1:<port>/?token=<token>`。

@@ -86,6 +86,32 @@ export function parsePendingQuestions(text) {
   return questions;
 }
 
+function splitMarkdownRow(line) {
+  let body = line.trim();
+  if (body.startsWith("|")) body = body.slice(1);
+  if (body.endsWith("|")) body = body.slice(0, -1);
+
+  const cells = [];
+  let current = "";
+  for (let i = 0; i < body.length; i++) {
+    const char = body[i];
+    const next = body[i + 1];
+    if (char === "\\" && next === "|") {
+      current += "|";
+      i++;
+      continue;
+    }
+    if (char === "|") {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
 /**
  * 解析 GM OKR 区块为结构化对象
  */
@@ -122,10 +148,10 @@ export function parseGmOkrSection(rawMarkdown) {
 export function parseMarkdownTable(markdown) {
   const lines = markdown.split("\n").filter((l) => l.trim().startsWith("|"));
   if (lines.length < 2) return [];
-  const headers = lines[0].split("|").map((h) => h.trim()).filter(Boolean);
+  const headers = splitMarkdownRow(lines[0]);
   const rows = [];
   for (let i = 2; i < lines.length; i++) {
-    const cells = lines[i].split("|").map((c) => c.trim()).filter(Boolean);
+    const cells = splitMarkdownRow(lines[i]);
     if (cells.length === 0) continue;
     const row = {};
     headers.forEach((h, idx) => { row[h] = cells[idx] || ""; });
@@ -146,6 +172,43 @@ function parseFrontmatter(content) {
     if (m) fields[m[1]] = m[2].trim();
   }
   return fields;
+}
+
+function readMarkdownItems(dir, parseWarnings, label) {
+  if (!fs.existsSync(dir)) return [];
+  try {
+    return fs.readdirSync(dir)
+      .filter((f) => f.endsWith(".md"))
+      .sort()
+      .map((name) => {
+        const filePath = path.join(dir, name);
+        try {
+          return {
+            name,
+            path: path.join(".okr", label, name),
+            content: fs.readFileSync(filePath, "utf8"),
+          };
+        } catch (e) {
+          parseWarnings.push(`${label}/${name} read error: ${e.message}`);
+          return { name, path: path.join(".okr", label, name), content: "" };
+        }
+      });
+  } catch (e) {
+    parseWarnings.push(`${label}/ read error: ${e.message}`);
+    return [];
+  }
+}
+
+function extractFinalResult(reviewItems) {
+  for (const item of [...reviewItems].reverse()) {
+    const line = item.content.split("\n").find((l) => /GM\s*最终\s*R[：:]/.test(l));
+    if (line) return line.trim();
+    const summary = extractSection(item.content, "汇总");
+    if (summary) return summary;
+    const conclusion = extractSection(item.content, "结论");
+    if (conclusion) return conclusion;
+  }
+  return "";
 }
 
 /**
@@ -201,25 +264,11 @@ export function readOkrState(projectRoot) {
     }
   }
 
-  let evidenceFiles = [];
-  if (fs.existsSync(evidenceDir)) {
-    try {
-      evidenceFiles = fs.readdirSync(evidenceDir).filter((f) => f.endsWith(".md"));
-    } catch (e) {
-      parseWarnings.push(`evidence/ read error: ${e.message}`);
-    }
-  }
-
-  let reviewFiles = [];
-  if (fs.existsSync(reviewsDir)) {
-    try {
-      reviewFiles = fs.readdirSync(reviewsDir).filter((f) => f.endsWith(".md"));
-    } catch (e) {
-      parseWarnings.push(`reviews/ read error: ${e.message}`);
-    }
-  }
-
-  const events = readWebEvents(projectRoot);
+  const evidenceItems = readMarkdownItems(evidenceDir, parseWarnings, "evidence");
+  const reviewItems = readMarkdownItems(reviewsDir, parseWarnings, "reviews");
+  const evidenceFiles = evidenceItems.map((item) => item.name);
+  const reviewFiles = reviewItems.map((item) => item.name);
+  const events = readWebEvents(projectRoot, parseWarnings);
   const gmOkrParsed = sections.gmOkr ? parseGmOkrSection(sections.gmOkr) : null;
 
   return {
@@ -230,7 +279,10 @@ export function readOkrState(projectRoot) {
     gmOkrParsed,
     statusRows,
     evidenceFiles,
+    evidenceItems,
     reviewFiles,
+    reviewItems,
+    finalResult: extractFinalResult(reviewItems),
     events,
     parseWarnings,
     updatedAt: new Date().toISOString(),
@@ -243,15 +295,16 @@ export function readOkrState(projectRoot) {
 export function renderUserGmActive(input) {
   const { objective, keyResults = [], boundaries = "" } = input;
   const krLines = keyResults.map((kr, i) => {
-    const id = kr.match(/^(GM-KR\d+)/)?.[1] || `GM-KR${i + 1}`;
-    const desc = kr.replace(/^GM-KR\d+[：:]\s*/, "");
+    const match = kr.match(/^(?:GM-)?KR(\d+)/i);
+    const id = match ? `GM-KR${match[1]}` : `GM-KR${i + 1}`;
+    const desc = kr.replace(/^(?:GM-)?KR\d+[：:]\s*/i, "");
     return `| ${id} | ${desc} | 待补充 | 未开始 |`;
   });
 
   return [
     "---",
     "version: 1",
-    "current_act: M0",
+    "current_act: M1",
     `last_updated: ${new Date().toISOString().slice(0, 10)}`,
     "updated_by: okr-run-web",
     "source: user_gm_input",
@@ -294,13 +347,22 @@ export function appendWebEvent(projectRoot, event) {
 /**
  * 读取 .okr/web/events.jsonl 中的所有事件
  */
-export function readWebEvents(projectRoot) {
+export function readWebEvents(projectRoot, parseWarnings = []) {
   const eventsPath = path.join(projectRoot, ".okr", "web", "events.jsonl");
   if (!fs.existsSync(eventsPath)) return [];
   try {
     const lines = fs.readFileSync(eventsPath, "utf8").trim().split("\n").filter(Boolean);
-    return lines.map((line) => JSON.parse(line));
-  } catch {
+    const events = [];
+    lines.forEach((line, idx) => {
+      try {
+        events.push(JSON.parse(line));
+      } catch (e) {
+        parseWarnings.push(`events.jsonl line ${idx + 1} parse error: ${e.message}`);
+      }
+    });
+    return events;
+  } catch (e) {
+    parseWarnings.push(`events.jsonl read error: ${e.message}`);
     return [];
   }
 }

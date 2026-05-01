@@ -7,6 +7,12 @@ import { createServer } from "./okr-run-web.mjs";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-server-"));
 const projectName = path.basename(root);
+const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-server-bin-"));
+const runnerMarker = path.join(root, "runner-called.json");
+fs.writeFileSync(path.join(fakeBin, "codex"), [
+  "#!/bin/sh",
+  `printf '%s\\n' "$@" > ${JSON.stringify(runnerMarker)}`
+].join("\n"), { mode: 0o755 });
 fs.mkdirSync(path.join(root, ".okr", "evidence"), { recursive: true });
 fs.writeFileSync(path.join(root, ".okr", "active.md"), [
   "---", "current_act: M1", "---",
@@ -45,6 +51,7 @@ async function runTests() {
     projectRoot: root,
     openBrowser: false,
     port: 0,
+    runnerEnv: { PATH: fakeBin },
   });
 
   const base = `http://127.0.0.1:${port}`;
@@ -71,6 +78,87 @@ async function runTests() {
     assert.equal(startRes.status, 200);
     const startData = JSON.parse(startRes.body);
     assert.ok(startData.prompt);
+    assert.equal(startData.mode, "codex");
+    assert.ok(startData.pid > 0);
+    for (let i = 0; i < 10 && !fs.existsSync(runnerMarker); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.ok(fs.existsSync(runnerMarker), "POST /api/start should invoke runner");
+
+    // GM OKR 模式必须先写入 .okr/active.md 并标记从 M1 继续
+    const gmRoot = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-gm-"));
+    const gmServer = await createServer({
+      projectRoot: gmRoot,
+      openBrowser: false,
+      port: 0,
+      noRunner: true,
+    });
+    try {
+      const gmBase = `http://127.0.0.1:${gmServer.port}`;
+      const gmRes = await fetch(`${gmBase}/api/start?token=${gmServer.token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "gm", objective: "交付权限能力", keyResults: ["GM-KR1：完成 RBAC"], boundaries: "不含 SSO" }),
+      });
+      assert.equal(gmRes.status, 200);
+      const gmActive = fs.readFileSync(path.join(gmRoot, ".okr", "active.md"), "utf8");
+      assert.ok(gmActive.includes("source: user_gm_input"));
+      assert.ok(gmActive.includes("current_act: M1"));
+      const gmData = JSON.parse(gmRes.body);
+      assert.equal(gmData.mode, "manual");
+    } finally {
+      await gmServer.close();
+      fs.rmSync(gmRoot, { recursive: true, force: true });
+    }
+
+    // noRunner 必须强制手动降级，不能偷偷调用本机 Codex/Claude
+    const manualRoot = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-manual-"));
+    const manualServer = await createServer({
+      projectRoot: manualRoot,
+      openBrowser: false,
+      port: 0,
+      noRunner: true,
+      runnerEnv: { PATH: fakeBin },
+    });
+    try {
+      const manualBase = `http://127.0.0.1:${manualServer.port}`;
+      const manualRes = await fetch(`${manualBase}/api/start?token=${manualServer.token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "raw", requirement: "做登录模块" }),
+      });
+      assert.equal(manualRes.status, 200);
+      assert.equal(JSON.parse(manualRes.body).mode, "manual");
+    } finally {
+      await manualServer.close();
+      fs.rmSync(manualRoot, { recursive: true, force: true });
+    }
+
+    // continue/restart/cancel 必须执行明确动作，而不是空返回 ok
+    const continueRes = await fetch(`${base}/api/action?token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "continue" }),
+    });
+    assert.equal(continueRes.status, 200);
+    assert.equal(JSON.parse(continueRes.body).mode, "codex");
+
+    const cancelRes = await fetch(`${base}/api/action?token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel" }),
+    });
+    assert.equal(cancelRes.status, 200);
+    assert.equal(JSON.parse(cancelRes.body).status, "cancelled");
+
+    const restartRes = await fetch(`${base}/api/action?token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restart", requirement: "重新做登录模块" }),
+    });
+    assert.equal(restartRes.status, 200);
+    assert.equal(JSON.parse(restartRes.body).mode, "codex");
+    assert.ok(fs.readdirSync(path.join(root, ".okr", "archive")).some((f) => f.includes("active")));
 
     // SSE /events 返回 snapshot 事件
     const sseRes = await new Promise((resolve, reject) => {
@@ -101,6 +189,7 @@ async function runTests() {
   } finally {
     await close();
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(fakeBin, { recursive: true, force: true });
   }
 }
 

@@ -54,7 +54,6 @@
       recommend: "推荐",
       submitRefine: "提交反馈并重新生成 GM OKR",
     },
-    /* PLACEHOLDER_EN */
     en: {
       title: "DoWithOKR Run Web",
       project: "Project",
@@ -141,8 +140,6 @@
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  /* PLACEHOLDER_RENDER_MARKDOWN */
-
   function renderMarkdown(text) {
     if (!text) return `<p class="md-paragraph" style="color:var(--text-secondary)">${t("noData")}</p>`;
     const lines = text.split("\n");
@@ -202,8 +199,6 @@
     return parts.join("");
   }
 
-  /* PLACEHOLDER_SIDEBAR */
-
   function renderSidebar() {
     const sb = document.getElementById("sidebar");
     const items = [
@@ -212,8 +207,10 @@
       { id: "nav-hier-okr", label: t("hierarchicalOkr") },
       { id: "nav-act", label: t("deliveryAct") },
       { id: "nav-status", label: t("statusBoard") },
+      { id: "nav-evidence", label: t("evidence") },
       { id: "nav-events", label: t("events") },
       { id: "nav-reviews", label: t("reviews") },
+      { id: "nav-final", label: t("finalR") },
     ];
     sb.innerHTML = `
       <div class="menu-title">${t("menu")}</div>
@@ -234,8 +231,6 @@
       el.style.display = el.id === id ? "" : "none";
     });
   };
-
-  /* PLACEHOLDER_RENDER_SECTIONS */
 
   function renderStartForm() {
     if (state?.hasActive) return "";
@@ -394,8 +389,6 @@
     </div>`;
   }
 
-  /* PLACEHOLDER_REST */
-
   function renderRoleTree() {
     if (!state?.sections?.roleTree) return `<div class="section" id="nav-tree"><div class="section-title">${t("roleTree")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
     return `<div class="section" id="nav-tree">
@@ -424,12 +417,13 @@
     if (!state?.statusRows?.length) return `<div class="section" id="nav-status"><div class="section-title">${t("statusBoard")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
     const rows = state.statusRows.map((r) => {
       const cls = r.kr === selectedKr ? "selected" : "";
+      const progressWidth = Math.max(0, Math.min(100, (parseFloat(r.progress) || 0) * 100));
       return `<tr class="${cls}" onclick="selectKr('${esc(r.kr)}')">
         <td>${esc(r.kr)}</td><td>${esc(r.upperKr)}</td><td>${esc(r.role)}</td>
         <td>${esc(r.act)}</td>
         <td><span class="status-badge ${statusClass(r.status)}">${esc(r.status)}</span></td>
         <td>
-          <div class="progress-bar"><div class="progress-fill" style="width:${(parseFloat(r.progress) || 0) * 100}%"></div></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${progressWidth}%"></div></div>
           ${r.progress}
         </td>
         <td>${esc(r.evidence)}</td><td>${esc(r.nextStep)}</td>
@@ -443,6 +437,22 @@
         <th>${t("evidence")}</th><th>${t("nextStep")}</th></tr>
         ${rows}
       </table>
+    </div>`;
+  }
+
+  function renderEvidence() {
+    const items = state?.evidenceItems || [];
+    if (!items.length) return `<div class="section" id="nav-evidence"><div class="section-title">${t("evidence")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
+    const visible = selectedKr ? items.filter((item) => item.name.includes(selectedKr) || item.content.includes(selectedKr)) : items;
+    const list = (visible.length ? visible : items).map((item) => `
+      <div class="card">
+        <div class="section-title">${esc(item.name)}</div>
+        <div class="md-content">${renderMarkdown(item.content)}</div>
+      </div>
+    `).join("");
+    return `<div class="section" id="nav-evidence">
+      <div class="section-title">${t("evidence")}</div>
+      ${list}
     </div>`;
   }
 
@@ -462,10 +472,25 @@
   }
 
   function renderReviews() {
-    if (!state?.reviewFiles?.length) return `<div class="section" id="nav-reviews"><div class="section-title">${t("reviews")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
+    const items = state?.reviewItems || [];
+    if (!items.length) return `<div class="section" id="nav-reviews"><div class="section-title">${t("reviews")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
+    const list = items.map((item) => `
+      <div class="card">
+        <div class="section-title">${esc(item.name)}</div>
+        <div class="md-content">${renderMarkdown(item.content)}</div>
+      </div>
+    `).join("");
     return `<div class="section" id="nav-reviews">
       <div class="section-title">${t("reviews")}</div>
-      <div class="card">${state.reviewFiles.map((f) => `<div>${esc(f)}</div>`).join("")}</div>
+      ${list}
+    </div>`;
+  }
+
+  function renderFinalResult() {
+    if (!state?.finalResult) return `<div class="section" id="nav-final"><div class="section-title">${t("finalR")}</div><div class="card"><p style="color:var(--text-secondary)">${t("noData")}</p></div></div>`;
+    return `<div class="section" id="nav-final">
+      <div class="section-title">${t("finalR")}</div>
+      <div class="card md-content">${renderMarkdown(state.finalResult)}</div>
     </div>`;
   }
 
@@ -509,8 +534,10 @@
       renderHierarchicalOkr(),
       renderDeliveryAct(),
       renderStatusTable(),
+      renderEvidence(),
       renderEvents(),
       renderReviews(),
+      renderFinalResult(),
     ].join("");
     renderDrawer();
 

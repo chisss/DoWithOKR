@@ -52,6 +52,7 @@ assert.ok(state.updatedAt);
 // --- renderUserGmActive 测试 ---
 const gm = renderUserGmActive({ objective: "交付权限能力", keyResults: ["GM-KR1：完成 RBAC"], boundaries: "不含 SSO" });
 assert.equal(gm.includes("source: user_gm_input"), true);
+assert.equal(gm.includes("current_act: M1"), true);
 assert.equal(gm.includes("## GM OKR"), true);
 assert.ok(gm.includes("交付权限能力"));
 assert.ok(gm.includes("GM-KR1"));
@@ -64,6 +65,7 @@ const written = fs.readFileSync(path.join(writeRoot, ".okr", "active.md"), "utf8
 assert.ok(written.includes("## GM OKR"));
 assert.ok(written.includes("user_gm_input"));
 assert.ok(written.includes("测试目标"));
+assert.ok(written.includes("current_act: M1"));
 
 // --- appendWebEvent / readWebEvents 测试 ---
 appendWebEvent(root, { skill: "okr-gm", act: "M0", status: "completed", summary: "GM OKR 已生成" });
@@ -77,6 +79,13 @@ appendWebEvent(root, { skill: "okr-role-splitter", act: "M1", status: "completed
 const events2 = readWebEvents(root);
 assert.equal(events2.length, 2);
 
+// 坏事件行不能导致整份执行日志丢失
+fs.appendFileSync(path.join(root, ".okr", "web", "events.jsonl"), "{bad json}\n", "utf8");
+appendWebEvent(root, { skill: "okr-planner", act: "M1", status: "completed", summary: "层级 OKR 已生成" });
+const stateWithBadEvent = readOkrState(root);
+assert.equal(stateWithBadEvent.events.length, 3);
+assert.ok(stateWithBadEvent.parseWarnings.some((w) => w.includes("events.jsonl line")));
+
 // --- parseMarkdownTable 测试 ---
 const tableRows = parseMarkdownTable([
   "| KR | 状态 |",
@@ -87,6 +96,26 @@ const tableRows = parseMarkdownTable([
 assert.equal(tableRows.length, 2);
 assert.equal(tableRows[0].KR, "GM-KR1");
 assert.equal(tableRows[1]["状态"], "未开始");
+
+const escapedTableRows = parseMarkdownTable([
+  "| KR | 说明 | 状态 |",
+  "| --- | --- | --- |",
+  "| GM-KR1 | 支持 A\\|B 权限 | 进行中 |",
+  "| GM-KR2 | [证据](docs/a\\|b.md) | |"
+].join("\n"));
+assert.equal(escapedTableRows.length, 2);
+assert.equal(escapedTableRows[0]["说明"], "支持 A|B 权限");
+assert.equal(escapedTableRows[1]["状态"], "");
+
+// 证据与评分内容应可供 Web 页面直接展示
+fs.writeFileSync(path.join(root, ".okr", "evidence", "BE-KR1.md"), "# BE-KR1 证据\n\n| 类型 | 路径/引用 |\n| --- | --- |\n| 测试 | tests/login.spec.ts |", "utf8");
+fs.mkdirSync(path.join(root, ".okr", "reviews"), { recursive: true });
+fs.writeFileSync(path.join(root, ".okr", "reviews", "2026-05-01.md"), "## 汇总\n\nGM 最终 R：0.82", "utf8");
+const richState = readOkrState(root);
+assert.equal(richState.evidenceItems[0].name, "BE-KR1.md");
+assert.ok(richState.evidenceItems[0].content.includes("tests/login.spec.ts"));
+assert.equal(richState.reviewItems[0].name, "2026-05-01.md");
+assert.ok(richState.finalResult.includes("GM 最终 R：0.82"));
 
 // --- extractSection 测试 ---
 const md = "## 甲方需求\n做登录\n## GM OKR\nO-GM：目标\n## 角色树\nGM";
