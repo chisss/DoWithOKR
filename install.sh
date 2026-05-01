@@ -11,6 +11,9 @@ set -euo pipefail
 PLUGIN_DIR="$(cd "$(dirname "$0")" && pwd)"
 TARGET_DIR="${1:-.}"
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
+TARGET_SLUG="$(basename "$TARGET_DIR" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g; s/^-*//; s/-*$//')"
+TARGET_SLUG="${TARGET_SLUG:-project}"
+MARKETPLACE_NAME="dowithokr-${TARGET_SLUG}"
 
 SKILLS_DIR="$PLUGIN_DIR/skills"
 REFS_DIR="$PLUGIN_DIR/references"
@@ -104,6 +107,14 @@ else
   mkdir -p "$AGENTS_PLUGINS_DIR/plugins"
 
   if [ -f "$MARKETPLACE_JSON" ]; then
+    tmp_file="$(mktemp)"
+    python3 -c "
+import json, sys
+with open('$MARKETPLACE_JSON') as f:
+    data = json.load(f)
+data['name'] = '$MARKETPLACE_NAME'
+json.dump(data, sys.stdout, indent=2, ensure_ascii=False)
+" > "$tmp_file" && mv "$tmp_file" "$MARKETPLACE_JSON"
     if grep -q '"dowithokr"' "$MARKETPLACE_JSON"; then
       echo "  marketplace.json already contains dowithokr. Updating plugin files."
     else
@@ -125,11 +136,11 @@ json.dump(data, sys.stdout, indent=2, ensure_ascii=False)
       echo "  Added dowithokr to existing marketplace.json"
     fi
   else
-    cat > "$MARKETPLACE_JSON" << 'MKJSON'
+    cat > "$MARKETPLACE_JSON" << MKJSON
 {
-  "name": "project-local",
+  "name": "$MARKETPLACE_NAME",
   "interface": {
-    "displayName": "Project Local Plugins"
+    "displayName": "DoWithOKR Local Plugins ($TARGET_SLUG)"
   },
   "plugins": [
     {
@@ -207,12 +218,6 @@ MKJSON
 
   # --- Register marketplace and enable plugin in Codex ---
   if command -v codex >/dev/null 2>&1; then
-    MARKETPLACE_NAME=$(python3 -c "
-import json
-with open('$MARKETPLACE_JSON') as f:
-    print(json.load(f).get('name', 'project-local'))
-" 2>/dev/null || echo "project-local")
-
     # Check if marketplace already registered
     if grep -qF "[marketplaces.$MARKETPLACE_NAME]" "$HOME/.codex/config.toml" 2>/dev/null; then
       echo "  Codex marketplace '$MARKETPLACE_NAME' already registered."

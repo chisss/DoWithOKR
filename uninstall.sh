@@ -11,6 +11,8 @@ set -euo pipefail
 PLUGIN_DIR="$(cd "$(dirname "$0")" && pwd)"
 TARGET_DIR="${1:-.}"
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
+TARGET_SLUG="$(basename "$TARGET_DIR" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g; s/^-*//; s/-*$//')"
+TARGET_SLUG="${TARGET_SLUG:-project}"
 
 ROUTING_MARKER="## DoWithOKR Skill Routing"
 
@@ -94,6 +96,14 @@ AGENTS_MD="$TARGET_DIR/AGENTS.md"
 AGENTS_PLUGINS_DIR="$TARGET_DIR/.agents/plugins"
 MARKETPLACE_JSON="$AGENTS_PLUGINS_DIR/marketplace.json"
 CODEX_LOCAL_PLUGIN="$AGENTS_PLUGINS_DIR/plugins/dowithokr"
+MARKETPLACE_NAME="dowithokr-${TARGET_SLUG}"
+if [ -f "$MARKETPLACE_JSON" ]; then
+  MARKETPLACE_NAME=$(python3 -c "
+import json
+with open('$MARKETPLACE_JSON') as f:
+    print(json.load(f).get('name', '$MARKETPLACE_NAME'))
+" 2>/dev/null || echo "$MARKETPLACE_NAME")
+fi
 
 if [ -d "$CODEX_LOCAL_PLUGIN" ]; then
   rm -rf "$CODEX_LOCAL_PLUGIN"
@@ -203,15 +213,6 @@ fi
 if command -v codex >/dev/null 2>&1; then
   CODEX_CONFIG="$HOME/.codex/config.toml"
   if [ -f "$CODEX_CONFIG" ]; then
-    MARKETPLACE_NAME="project-local"
-    if [ -f "$MARKETPLACE_JSON" ]; then
-      MARKETPLACE_NAME=$(python3 -c "
-import json
-with open('$MARKETPLACE_JSON') as f:
-    print(json.load(f).get('name', 'project-local'))
-" 2>/dev/null || echo "project-local")
-    fi
-
     PLUGIN_KEY="dowithokr@$MARKETPLACE_NAME"
     changed=false
 
