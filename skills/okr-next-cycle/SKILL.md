@@ -90,7 +90,35 @@ description: Recommend the next DoWithOKR delivery act or next GM OKR cycle afte
 ## 产出写入
 
 - 本技能以建议为主，默认不修改文件。
-- 如果用户确认进入下一轮，则：
-  - 更新 `.okr/active.md` frontmatter：`current_act` 更新为建议的交付幕。
-  - 更新 `last_updated`、`updated_by: okr-next-cycle`。
-  - 如果是开启全新 GM OKR 轮次，备份当前 `.okr/active.md` 为 `.okr/archive/<日期>-active.md`，然后重新初始化。
+- 如果用户确认进入下一轮，则根据场景执行不同操作：
+
+### 场景 A：继续当前周期（回退到 M2/M3）
+
+- 更新 `.okr/active.md` frontmatter：`current_act` 更新为建议的交付幕。
+- 更新 `last_updated`、`updated_by: okr-next-cycle`。
+- 不执行归档和清理。
+
+### 场景 B：标记本轮完成
+
+当 GM 最终 R ≥ 0.7 且用户确认本轮结束时：
+
+1. 执行周期归档（规则同 `okr-review-score` 的"周期归档与清理"章节）：
+   - 创建 `.okr/archive/<YYYY-MM-DD>-cycle/` 目录。
+   - 归档 `active.md`、`status.md`、`evidence/`、`reviews/` 到归档目录。
+   - 为归档文件追加 `archived_at` 和 `archived_reason: cycle-complete`。
+   - 生成 `archive/<date>-cycle/summary.md` 归档摘要。
+2. 清空工作区：删除 `active.md`、`status.md`、`evidence/`、`reviews/`。
+3. **保留** `wisdom/` 和 `archive/`。
+
+### 场景 C：开启全新 GM OKR 轮次
+
+当需求本身需要调整时：
+
+1. 执行周期归档（同场景 B）。
+2. 清空工作区（同场景 B）。
+3. 提示用户输入新需求，准备进入 M0。
+
+### 用户确认
+
+- 场景 B 和 C 的归档清理前必须向用户展示归档摘要并请求确认。
+- 用户拒绝归档时，仅更新 `current_act`，不执行归档和清理。

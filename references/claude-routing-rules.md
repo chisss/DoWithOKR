@@ -14,3 +14,4 @@ When the user's request matches a DoWithOKR skill, invoke it using the Skill too
 | "对齐检查" / "是否偏离" / "任务对齐" | /okr-alignment-check |
 | "评分复盘" / "OKR 评分" / "最终 R" | /okr-review-score |
 | "下一轮" / "下一个周期" / "进入下一幕" | /okr-next-cycle |
+| "归档" / "清理 OKR" / "归档当前周期" / "archive" | /okr-archive |

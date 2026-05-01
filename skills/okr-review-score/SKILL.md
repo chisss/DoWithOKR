@@ -94,6 +94,44 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - 角色树中某个角色无任何 KR 执行记录：评分为 0.0，说明"未参与本轮交付"。
 - 用户对评分有异议：允许手动调整分数，但必须附带调整理由。
 
+## 周期归档与清理
+
+评分复盘完成后，执行周期归档，为下一轮 OKR 腾出干净的工作区。
+
+### 归档步骤
+
+1. 创建归档目录 `.okr/archive/<YYYY-MM-DD>-cycle/`（日期为当天）。
+   - 同一天多次归档时追加序号：`<YYYY-MM-DD>-cycle-2/`。
+2. 将以下文件移入归档目录：
+   - `active.md` → `archive/<date>-cycle/active.md`
+   - `status.md` → `archive/<date>-cycle/status.md`
+   - `evidence/` 目录整体 → `archive/<date>-cycle/evidence/`
+   - `reviews/` 目录整体 → `archive/<date>-cycle/reviews/`
+3. 为归档目录中的 `active.md` 和 `status.md` 追加归档 frontmatter：
+   - `archived_at: <YYYY-MM-DD>`
+   - `archived_reason: cycle-complete`
+4. 生成归档摘要文件 `archive/<date>-cycle/summary.md`：
+   - GM 最终 R 分数
+   - 甲方需求摘要（一句话）
+   - KR 完成统计（已完成/总数）
+   - 参与角色列表
+
+### 清理步骤
+
+归档完成后，清空工作区状态文件：
+
+1. 删除 `.okr/active.md`。
+2. 删除 `.okr/status.md`。
+3. 删除 `.okr/evidence/` 目录（已归档）。
+4. 删除 `.okr/reviews/` 目录（已归档）。
+5. **保留** `.okr/wisdom/` — 角色经验跨周期积累，不清理。
+6. **保留** `.okr/archive/` — 历史归档，不清理。
+
+### 用户确认
+
+- 归档和清理前必须向用户展示归档摘要并请求确认。
+- 用户拒绝归档时，跳过归档和清理步骤，仅保留评分结果。
+
 ## 产出写入
 
 - 创建 `.okr/reviews/<今天日期>.md`：
@@ -107,3 +145,4 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
   - 更新 frontmatter 的 `updated` 和 `cycles_completed`。
 - 创建或更新 `.okr/wisdom/team.md`：
   - 写入团队级别的协作经验。
+- 执行周期归档与清理（见上方"周期归档与清理"章节）。

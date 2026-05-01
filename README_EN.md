@@ -122,8 +122,9 @@ Scoring chain: GM → PD + ArchD, PD → PM + UI + TW, ArchD → BE + FE + QA + 
 | `okr-role-run` | Execute a specific role's KR | "Run backend engineer KR2" |
 | `okr-status-tracker` | KR status board | "Show current OKR progress" |
 | `okr-alignment-check` | Check delivery against KR standards | "Check whether this task has drifted" |
-| `okr-review-score` | Score review + experience distillation | "Run OKR score review" |
+| `okr-review-score` | Score review + experience distillation + cycle archive | "Run OKR score review" |
 | `okr-next-cycle` | Next cycle recommendation + capability report | "Move to the next cycle" |
+| `okr-archive` | Manually archive current cycle and clean workspace | "Archive current OKR cycle" |
 
 ## Delivery Act Model
 
@@ -135,16 +136,16 @@ DoWithOKR replaces real-world time periods with evidence-gated "delivery acts":
 | M1 | Organization Decomposition | Role tree + role OKR | GM |
 | M2 | Solution Formation | Product plan + tech plan | PD, PM, UI, ArchD |
 | M3 | Build Verification | Code, tests, docs | BE, FE, QA, DevOps, SEC, TW |
-| M4 | Review Convergence | Scoring + value summary + capability accumulation | GM |
+| M4 | Review Convergence | Scoring + value summary + capability accumulation + cycle archive | GM |
 
 ## Installation
 
 ### Prerequisites
 
 - [Git](https://git-scm.com/)
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Codex CLI](https://github.com/openai/codex)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Codex CLI](https://github.com/openai/codex) (one or both)
 
-### Claude Code (Recommended)
+### One-Command Install
 
 ```bash
 git clone https://github.com/<your-username>/DoWithOKR.git
@@ -152,11 +153,14 @@ cd DoWithOKR
 ./install.sh /path/to/your/project
 ```
 
-`install.sh` copies skill files to `.claude/commands/` and appends routing rules to `CLAUDE.md`.
+`install.sh` sets up both platforms in one run:
 
-### Codex
+| Platform | What It Does | Install Location |
+| --- | --- | --- |
+| Claude Code | Copies SKILL.md as slash commands, appends routing rules | `.claude/commands/okr-*.md` + `CLAUDE.md` |
+| Codex CLI | Creates plugin directory, symlinks skills and reference templates | `.codex-plugin/plugin.json` + `skills/` + `references/` |
 
-Place the `DoWithOKR` directory in your project root. Codex auto-discovers it via `.codex-plugin/plugin.json`.
+Installation is idempotent — running it again skips already-installed content.
 
 ### Uninstall
 
@@ -164,18 +168,30 @@ Place the `DoWithOKR` directory in your project root. Codex auto-discovers it vi
 ./uninstall.sh /path/to/your/project
 ```
 
+Cleans up both Claude Code and Codex CLI artifacts. Only removes DoWithOKR's own files — other plugins are untouched.
+
 ## Quick Start
 
 **1. Install**
 
 ```bash
-git clone https://github.com/<your-username>/DoWithOKR.git && cd DoWithOKR && ./install.sh /path/to/your/project
+git clone https://github.com/<your-username>/DoWithOKR.git
+cd DoWithOKR && ./install.sh /path/to/your/project
 ```
 
-**2. Trigger full auto mode (in Claude Code):**
+**2. Run**
+
+Claude Code (interactive):
 
 ```text
 Use DoWithOKR to run this requirement: build a user login and access-control module.
+```
+
+Codex CLI (non-interactive):
+
+```bash
+codex exec --full-auto -C /path/to/your/project \
+  "Use the okr-gm skill. Requirement: build a user login and access-control module"
 ```
 
 **3. Check output**
@@ -187,15 +203,18 @@ ls /path/to/your/project/.okr/
 
 ### Step-by-Step Mode
 
-```text
-/okr-gm              → Convert need to GM OKR
-/okr-role-splitter   → Decompose role tree
-/okr-planner         → Hierarchical OKR + delivery acts
-/okr-execution-plan  → Delivery verification plan
-/okr-role-run        → Execute a specific role's KR
-/okr-status-tracker  → View status board
-/okr-review-score    → Score review
-```
+Claude Code uses slash commands; Codex uses skill names in the prompt:
+
+| Step | Claude Code | Codex CLI prompt |
+| --- | --- | --- |
+| Convert need to GM OKR | `/okr-gm` | `"Use the okr-gm skill. Requirement: ..."` |
+| Decompose role tree | `/okr-role-splitter` | `"Use the okr-role-splitter skill"` |
+| Hierarchical OKR + delivery acts | `/okr-planner` | `"Use the okr-planner skill"` |
+| Delivery verification plan | `/okr-execution-plan` | `"Use the okr-execution-plan skill"` |
+| Execute a role's KR | `/okr-role-run` | `"Use the okr-role-run skill, execute BE Backend Engineer"` |
+| View status board | `/okr-status-tracker` | `"Use the okr-status-tracker skill"` |
+| Score review | `/okr-review-score` | `"Use the okr-review-score skill"` |
+| Manual archive | `/okr-archive` | `"Use the okr-archive skill"` |
 
 ## State Files
 
@@ -207,8 +226,10 @@ All OKR state is persisted in the `.okr/` directory:
   status.md       # KR status board
   evidence/       # Per-KR evidence index
   reviews/        # Score review records
-  wisdom/         # Role capability accumulation
-  archive/        # Historical snapshots
+  wisdom/         # Role capability accumulation (preserved across cycles)
+  archive/        # Historical archives
+    <date>-cycle/   # Cycle-complete archive (active/status/evidence/reviews/summary)
+    <date>-active.md  # Restart archive
 ```
 
 Recommended: `echo '.okr/' >> .gitignore`
@@ -292,14 +313,25 @@ See the full example in [examples/login-access-okr.md](examples/login-access-okr
 ## Plugin Structure
 
 ```text
-DoWithOKR/
-  .claude-plugin/plugin.json    # Claude Code manifest
-  .codex-plugin/plugin.json     # Codex manifest
-  skills/                       # 10 skill entry points
-  references/                   # Shared templates & specs
-  examples/                     # Sample OKR workflows
-  docs/                         # Product docs & design philosophy
-  scripts/validate-plugin.mjs   # Plugin validation script
+DoWithOKR/                          # Plugin source directory
+  .claude-plugin/plugin.json        # Claude Code manifest
+  .codex-plugin/plugin.json         # Codex manifest
+  skills/                           # 11 skill entry points (SKILL.md)
+  references/                       # Shared templates & specs
+  examples/                         # Sample OKR workflows
+  docs/                             # Product docs & design philosophy
+  scripts/validate-plugin.mjs       # Plugin validation script
+  install.sh                        # Installer (Claude Code + Codex)
+  uninstall.sh                      # Uninstaller
+
+target-project/                     # Target project after install
+  .claude/commands/okr-*.md         # Claude Code slash commands (copied)
+  .codex-plugin/
+    plugin.json                     # Codex plugin descriptor (copied)
+    skills/ → DoWithOKR/skills/     # symlink to source
+    references/ → DoWithOKR/refs/   # symlink to source
+  CLAUDE.md                         # Routing rules appended
+  .okr/                             # Runtime output (created by skills)
 ```
 
 ## Validation
@@ -314,6 +346,7 @@ cd DoWithOKR && node scripts/validate-plugin.mjs
 - Content-first plugin with no runtime service dependency
 - Skills communicate via `.okr/` state files for cross-invocation context
 - Supports resume from checkpoint: re-trigger `okr-run` after interruption to auto-resume
+- Cycle archive: after M4 score review, automatically archives and cleans workspace; wisdom/ is preserved across cycles
 
 ## Roadmap
 

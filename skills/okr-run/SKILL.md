@@ -118,7 +118,11 @@ description: Run the full DoWithOKR workflow from client need to GM OKR, role tr
 ### M4 收敛复盘幕
 
 20. 调用 `okr-review-score`：上级评分并汇总最终 R。
+    - `okr-review-score` 完成评分后会执行周期归档与清理（归档 active.md、status.md、evidence/、reviews/ 到 `.okr/archive/<date>-cycle/`，清空工作区，保留 wisdom/ 和 archive/）。
+    - 归档前需用户确认。
 21. 调用 `okr-next-cycle`：生成下一轮建议。
+    - 如果用户确认本轮结束且 `okr-review-score` 已完成归档，则 `okr-next-cycle` 跳过归档。
+    - 如果用户在 `okr-review-score` 阶段拒绝了归档，`okr-next-cycle` 在用户确认结束时再次触发归档。
 22. **用户确认点**：展示最终 R 和下一轮建议，等待用户决定。
 
 ### 失败回退
