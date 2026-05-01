@@ -88,13 +88,59 @@ echo ""
 # ==========================================================
 echo "── Codex CLI ──"
 
-CODEX_PLUGIN_DIR="$TARGET_DIR/.codex-plugin"
 AGENTS_MD="$TARGET_DIR/AGENTS.md"
 
-if [ ! -d "$CODEX_PLUGIN_DIR" ]; then
-  echo "  No .codex-plugin/ directory found. Skipping."
-else
-  # 只在 plugin.json 属于 DoWithOKR 时才清理
+# --- Clean repo-local marketplace plugin ---
+AGENTS_PLUGINS_DIR="$TARGET_DIR/.agents/plugins"
+MARKETPLACE_JSON="$AGENTS_PLUGINS_DIR/marketplace.json"
+CODEX_LOCAL_PLUGIN="$AGENTS_PLUGINS_DIR/plugins/dowithokr"
+
+if [ -d "$CODEX_LOCAL_PLUGIN" ]; then
+  rm -rf "$CODEX_LOCAL_PLUGIN"
+  echo "  Removed: .agents/plugins/plugins/dowithokr/"
+fi
+
+# Remove empty plugins/ dir
+if [ -d "$AGENTS_PLUGINS_DIR/plugins" ] && [ -z "$(ls -A "$AGENTS_PLUGINS_DIR/plugins")" ]; then
+  rmdir "$AGENTS_PLUGINS_DIR/plugins"
+fi
+
+if [ -f "$MARKETPLACE_JSON" ]; then
+  if grep -q '"dowithokr"' "$MARKETPLACE_JSON"; then
+    # Count plugins in marketplace
+    plugin_count=$(python3 -c "
+import json
+with open('$MARKETPLACE_JSON') as f:
+    data = json.load(f)
+print(len(data.get('plugins', [])))
+" 2>/dev/null || echo "0")
+
+    if [ "$plugin_count" = "1" ]; then
+      rm "$MARKETPLACE_JSON"
+      echo "  Removed: .agents/plugins/marketplace.json (was only dowithokr)"
+      # Remove empty dirs
+      [ -d "$AGENTS_PLUGINS_DIR" ] && [ -z "$(ls -A "$AGENTS_PLUGINS_DIR")" ] && rmdir "$AGENTS_PLUGINS_DIR"
+      [ -d "$TARGET_DIR/.agents" ] && [ -z "$(ls -A "$TARGET_DIR/.agents")" ] && rmdir "$TARGET_DIR/.agents"
+    else
+      tmp_file="$(mktemp)"
+      python3 -c "
+import json, sys
+with open('$MARKETPLACE_JSON') as f:
+    data = json.load(f)
+data['plugins'] = [p for p in data.get('plugins', []) if p.get('name') != 'dowithokr']
+json.dump(data, sys.stdout, indent=2, ensure_ascii=False)
+" > "$tmp_file" && mv "$tmp_file" "$MARKETPLACE_JSON"
+      echo "  Removed dowithokr from marketplace.json (other plugins remain)"
+    fi
+  else
+    echo "  marketplace.json does not contain dowithokr. Skipping."
+  fi
+fi
+
+# --- Clean legacy .codex-plugin/ ---
+CODEX_PLUGIN_DIR="$TARGET_DIR/.codex-plugin"
+
+if [ -d "$CODEX_PLUGIN_DIR" ]; then
   should_clean=false
   if [ -f "$CODEX_PLUGIN_DIR/plugin.json" ]; then
     existing_name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$CODEX_PLUGIN_DIR/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
@@ -106,63 +152,96 @@ else
   fi
 
   if [ "$should_clean" = true ]; then
-    # 删除 symlinks
-    if [ -L "$CODEX_PLUGIN_DIR/skills" ]; then
-      rm "$CODEX_PLUGIN_DIR/skills"
-      echo "  Removed: .codex-plugin/skills symlink"
-    fi
-    if [ -L "$CODEX_PLUGIN_DIR/references" ]; then
-      rm "$CODEX_PLUGIN_DIR/references"
-      echo "  Removed: .codex-plugin/references symlink"
-    fi
-    if [ -L "$CODEX_PLUGIN_DIR/scripts" ]; then
-      rm "$CODEX_PLUGIN_DIR/scripts"
-      echo "  Removed: .codex-plugin/scripts symlink"
-    fi
-    if [ -L "$CODEX_PLUGIN_DIR/web" ]; then
-      rm "$CODEX_PLUGIN_DIR/web"
-      echo "  Removed: .codex-plugin/web symlink"
-    fi
-
-    # 删除 plugin.json
-    rm "$CODEX_PLUGIN_DIR/plugin.json"
+    for lnk in skills references scripts web; do
+      [ -L "$CODEX_PLUGIN_DIR/$lnk" ] && rm "$CODEX_PLUGIN_DIR/$lnk" && echo "  Removed: .codex-plugin/$lnk symlink"
+    done
+    rm -f "$CODEX_PLUGIN_DIR/plugin.json"
     echo "  Removed: .codex-plugin/plugin.json"
-
-    # 目录为空则删除
-    if [ -d "$CODEX_PLUGIN_DIR" ] && [ -z "$(ls -A "$CODEX_PLUGIN_DIR")" ]; then
-      rmdir "$CODEX_PLUGIN_DIR"
-      echo "  Removed: .codex-plugin/ (empty)"
-    fi
+    [ -d "$CODEX_PLUGIN_DIR" ] && [ -z "$(ls -A "$CODEX_PLUGIN_DIR")" ] && rmdir "$CODEX_PLUGIN_DIR" && echo "  Removed: .codex-plugin/ (empty)"
   fi
+else
+  echo "  No .codex-plugin/ directory found."
+fi
 
-  # 清理 AGENTS.md 中的路由规则
-  if [ -f "$AGENTS_MD" ]; then
-    if grep -qF "$ROUTING_MARKER" "$AGENTS_MD"; then
-      tmp_file="$(mktemp)"
-      awk -v marker="$ROUTING_MARKER" '
-        BEGIN { skip = 0 }
-        {
-          if (index($0, marker) == 1) {
-            skip = 1
-            next
-          }
-          if (skip && /^## /) {
-            skip = 0
-          }
-          if (!skip) {
-            print
-          }
+# --- Clean AGENTS.md routing rules ---
+if [ -f "$AGENTS_MD" ]; then
+  if grep -qF "$ROUTING_MARKER" "$AGENTS_MD"; then
+    tmp_file="$(mktemp)"
+    awk -v marker="$ROUTING_MARKER" '
+      BEGIN { skip = 0 }
+      {
+        if (index($0, marker) == 1) {
+          skip = 1
+          next
         }
-      ' "$AGENTS_MD" > "$tmp_file"
+        if (skip && /^## /) {
+          skip = 0
+        }
+        if (!skip) {
+          print
+        }
+      }
+    ' "$AGENTS_MD" > "$tmp_file"
 
-      while [ -s "$tmp_file" ] && tail -1 "$tmp_file" | grep -q '^[[:space:]]*$'; do
-        sed -i.bak '$ d' "$tmp_file"
-        rm -f "$tmp_file.bak"
-      done
+    while [ -s "$tmp_file" ] && tail -1 "$tmp_file" | grep -q '^[[:space:]]*$'; do
+      sed -i.bak '$ d' "$tmp_file"
+      rm -f "$tmp_file.bak"
+    done
+
+    # If AGENTS.md is now empty, remove it
+    if [ ! -s "$tmp_file" ]; then
+      rm "$AGENTS_MD" "$tmp_file"
+      echo "  Removed AGENTS.md (was only DoWithOKR content)"
+    else
       mv "$tmp_file" "$AGENTS_MD"
       echo "  Removed routing rules from AGENTS.md"
     fi
   fi
+fi
+
+# --- Deregister from Codex config.toml ---
+if command -v codex >/dev/null 2>&1; then
+  CODEX_CONFIG="$HOME/.codex/config.toml"
+  if [ -f "$CODEX_CONFIG" ]; then
+    MARKETPLACE_NAME="project-local"
+    if [ -f "$MARKETPLACE_JSON" ]; then
+      MARKETPLACE_NAME=$(python3 -c "
+import json
+with open('$MARKETPLACE_JSON') as f:
+    print(json.load(f).get('name', 'project-local'))
+" 2>/dev/null || echo "project-local")
+    fi
+
+    PLUGIN_KEY="dowithokr@$MARKETPLACE_NAME"
+    changed=false
+
+    if grep -qF "[plugins.\"$PLUGIN_KEY\"]" "$CODEX_CONFIG"; then
+      tmp_file="$(mktemp)"
+      python3 -c "
+import re, sys
+with open('$CODEX_CONFIG') as f:
+    content = f.read()
+pattern = r'\n?\[plugins\.\"dowithokr@[^\"]*\"\]\s*\nenabled\s*=\s*\w+\s*\n?'
+content = re.sub(pattern, '\n', content)
+sys.stdout.write(content)
+" > "$tmp_file" && mv "$tmp_file" "$CODEX_CONFIG"
+      echo "  Removed plugin '$PLUGIN_KEY' from config.toml"
+      changed=true
+    fi
+
+    if grep -qF "[marketplaces.$MARKETPLACE_NAME]" "$CODEX_CONFIG"; then
+      codex plugin marketplace remove "$MARKETPLACE_NAME" 2>/dev/null && \
+        echo "  Removed marketplace '$MARKETPLACE_NAME' from config.toml" || \
+        echo "  [WARN] Failed to remove marketplace. Run: codex plugin marketplace remove $MARKETPLACE_NAME"
+      changed=true
+    fi
+
+    if [ "$changed" = false ]; then
+      echo "  No Codex config.toml entries to clean."
+    fi
+  fi
+else
+  echo "  [INFO] Codex CLI not found. Skipping config.toml cleanup."
 fi
 
 echo ""

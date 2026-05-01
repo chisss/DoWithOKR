@@ -2,10 +2,18 @@
   "name": "dowithokr",
   "version": "0.1.0",
   "description": "A multi-skill OKR plugin that works like a small technical company for AI tasks.",
-  "interface": {
-    "displayName": "DoWithOKR"
+  "author": {
+    "name": "DoWithOKR"
   },
-  "skills": {
-    "path": "skills"
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DoWithOKR",
+    "shortDescription": "OKR-driven AI team delivery workflow",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ]
   }
 }

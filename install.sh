@@ -84,82 +84,112 @@ fi
 echo ""
 
 # ==========================================================
-# Codex CLI
+# Codex CLI — repo-local marketplace + plugin registration
 # ==========================================================
 echo "── Codex CLI ──"
 
-CODEX_PLUGIN_DIR="$TARGET_DIR/.codex-plugin"
 CODEX_PLUGIN_JSON="$PLUGIN_DIR/.codex-plugin/plugin.json"
 AGENTS_MD="$TARGET_DIR/AGENTS.md"
 AGENTS_MARKER="## DoWithOKR Skill Routing"
 
+# Codex discovers plugins via .agents/plugins/marketplace.json
+AGENTS_PLUGINS_DIR="$TARGET_DIR/.agents/plugins"
+MARKETPLACE_JSON="$AGENTS_PLUGINS_DIR/marketplace.json"
+CODEX_LOCAL_PLUGIN="$AGENTS_PLUGINS_DIR/plugins/dowithokr"
+
 if [ ! -f "$CODEX_PLUGIN_JSON" ]; then
   echo "  [WARN] Source .codex-plugin/plugin.json not found. Skipping Codex install."
 else
-  if [ ! -d "$CODEX_PLUGIN_DIR" ]; then
-    mkdir -p "$CODEX_PLUGIN_DIR"
+  # --- marketplace.json ---
+  mkdir -p "$AGENTS_PLUGINS_DIR/plugins"
+
+  if [ -f "$MARKETPLACE_JSON" ]; then
+    if grep -q '"dowithokr"' "$MARKETPLACE_JSON"; then
+      echo "  marketplace.json already contains dowithokr. Updating plugin files."
+    else
+      # Append dowithokr entry to existing marketplace plugins array
+      tmp_file="$(mktemp)"
+      python3 -c "
+import json, sys
+with open('$MARKETPLACE_JSON') as f:
+    data = json.load(f)
+entry = {
+    'name': 'dowithokr',
+    'source': {'source': 'local', 'path': './plugins/dowithokr'},
+    'policy': {'installation': 'AVAILABLE'},
+    'category': 'Productivity'
+}
+data.setdefault('plugins', []).append(entry)
+json.dump(data, sys.stdout, indent=2, ensure_ascii=False)
+" > "$tmp_file" && mv "$tmp_file" "$MARKETPLACE_JSON"
+      echo "  Added dowithokr to existing marketplace.json"
+    fi
+  else
+    cat > "$MARKETPLACE_JSON" << 'MKJSON'
+{
+  "name": "project-local",
+  "interface": {
+    "displayName": "Project Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "dowithokr",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dowithokr"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
+MKJSON
+    echo "  Created: .agents/plugins/marketplace.json"
   fi
 
-  # plugin.json
-  if [ -f "$CODEX_PLUGIN_DIR/plugin.json" ]; then
-    existing_name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$CODEX_PLUGIN_DIR/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-    if [ "$existing_name" = "dowithokr" ]; then
-      echo "  plugin.json already installed. Updating."
-    else
-      echo "  [WARN] .codex-plugin/plugin.json belongs to '$existing_name'. Skipping to avoid overwrite."
-      echo ""
-      echo "Done."
-      exit 0
+  # --- plugin directory with .codex-plugin/plugin.json ---
+  mkdir -p "$CODEX_LOCAL_PLUGIN/.codex-plugin"
+  cp "$CODEX_PLUGIN_JSON" "$CODEX_LOCAL_PLUGIN/.codex-plugin/plugin.json"
+  echo "  Installed: .agents/plugins/plugins/dowithokr/.codex-plugin/plugin.json"
+
+  # symlink helper: create or refresh a symlink
+  link_resource() {
+    local name="$1"
+    local src="$2"
+    local dest="$CODEX_LOCAL_PLUGIN/$name"
+    if [ -L "$dest" ]; then rm "$dest"; fi
+    if [ -d "$dest" ] && [ ! -L "$dest" ]; then
+      echo "  [WARN] $name is a real directory. Skipping symlink."
+      return
+    fi
+    ln -sf "$src" "$dest"
+    echo "  Linked:    .agents/.../dowithokr/$name → $src"
+  }
+
+  link_resource "skills"     "$SKILLS_DIR"
+  link_resource "references" "$REFS_DIR"
+  link_resource "scripts"    "$PLUGIN_DIR/scripts"
+  link_resource "web"        "$PLUGIN_DIR/web"
+
+  # --- Legacy .codex-plugin/ (keep for backward compat) ---
+  CODEX_PLUGIN_DIR="$TARGET_DIR/.codex-plugin"
+  if [ -d "$CODEX_PLUGIN_DIR" ]; then
+    if [ -f "$CODEX_PLUGIN_DIR/plugin.json" ]; then
+      existing_name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$CODEX_PLUGIN_DIR/plugin.json" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+      if [ "$existing_name" = "dowithokr" ]; then
+        echo "  Cleaning legacy .codex-plugin/ (migrated to .agents/plugins/)"
+        rm -f "$CODEX_PLUGIN_DIR/plugin.json"
+        for lnk in skills references scripts web; do
+          [ -L "$CODEX_PLUGIN_DIR/$lnk" ] && rm "$CODEX_PLUGIN_DIR/$lnk"
+        done
+        [ -d "$CODEX_PLUGIN_DIR" ] && [ -z "$(ls -A "$CODEX_PLUGIN_DIR")" ] && rmdir "$CODEX_PLUGIN_DIR"
+      fi
     fi
   fi
-  cp "$CODEX_PLUGIN_JSON" "$CODEX_PLUGIN_DIR/plugin.json"
-  echo "  Installed: .codex-plugin/plugin.json"
 
-  # skills/ symlink
-  if [ -L "$CODEX_PLUGIN_DIR/skills" ]; then
-    rm "$CODEX_PLUGIN_DIR/skills"
-  fi
-  if [ -d "$CODEX_PLUGIN_DIR/skills" ] && [ ! -L "$CODEX_PLUGIN_DIR/skills" ]; then
-    echo "  [WARN] .codex-plugin/skills/ is a real directory. Skipping symlink."
-  else
-    ln -sf "$SKILLS_DIR" "$CODEX_PLUGIN_DIR/skills"
-    echo "  Linked:    .codex-plugin/skills → $SKILLS_DIR"
-  fi
-
-  # references/ symlink
-  if [ -L "$CODEX_PLUGIN_DIR/references" ]; then
-    rm "$CODEX_PLUGIN_DIR/references"
-  fi
-  if [ -d "$CODEX_PLUGIN_DIR/references" ] && [ ! -L "$CODEX_PLUGIN_DIR/references" ]; then
-    echo "  [WARN] .codex-plugin/references/ is a real directory. Skipping symlink."
-  else
-    ln -sf "$REFS_DIR" "$CODEX_PLUGIN_DIR/references"
-    echo "  Linked:    .codex-plugin/references → $REFS_DIR"
-  fi
-
-  # scripts/ symlink for okr-run-web runtime
-  if [ -L "$CODEX_PLUGIN_DIR/scripts" ]; then
-    rm "$CODEX_PLUGIN_DIR/scripts"
-  fi
-  if [ -d "$CODEX_PLUGIN_DIR/scripts" ] && [ ! -L "$CODEX_PLUGIN_DIR/scripts" ]; then
-    echo "  [WARN] .codex-plugin/scripts/ is a real directory. Skipping symlink."
-  else
-    ln -sf "$PLUGIN_DIR/scripts" "$CODEX_PLUGIN_DIR/scripts"
-    echo "  Linked:    .codex-plugin/scripts → $PLUGIN_DIR/scripts"
-  fi
-
-  # web/ symlink for okr-run-web assets
-  if [ -L "$CODEX_PLUGIN_DIR/web" ]; then
-    rm "$CODEX_PLUGIN_DIR/web"
-  fi
-  if [ -d "$CODEX_PLUGIN_DIR/web" ] && [ ! -L "$CODEX_PLUGIN_DIR/web" ]; then
-    echo "  [WARN] .codex-plugin/web/ is a real directory. Skipping symlink."
-  else
-    ln -sf "$PLUGIN_DIR/web" "$CODEX_PLUGIN_DIR/web"
-    echo "  Linked:    .codex-plugin/web → $PLUGIN_DIR/web"
-  fi
-
-  # AGENTS.md routing rules
+  # --- AGENTS.md routing rules ---
   if [ -f "$ROUTING_FILE" ]; then
     if [ -f "$AGENTS_MD" ]; then
       if grep -qF "$AGENTS_MARKER" "$AGENTS_MD"; then
@@ -169,7 +199,43 @@ else
         cat "$ROUTING_FILE" >> "$AGENTS_MD"
         echo "  Routing rules appended to AGENTS.md"
       fi
+    else
+      cat "$ROUTING_FILE" > "$AGENTS_MD"
+      echo "  Created AGENTS.md with routing rules"
     fi
+  fi
+
+  # --- Register marketplace and enable plugin in Codex ---
+  if command -v codex >/dev/null 2>&1; then
+    MARKETPLACE_NAME=$(python3 -c "
+import json
+with open('$MARKETPLACE_JSON') as f:
+    print(json.load(f).get('name', 'project-local'))
+" 2>/dev/null || echo "project-local")
+
+    # Check if marketplace already registered
+    if grep -qF "[marketplaces.$MARKETPLACE_NAME]" "$HOME/.codex/config.toml" 2>/dev/null; then
+      echo "  Codex marketplace '$MARKETPLACE_NAME' already registered."
+    else
+      codex plugin marketplace add "$TARGET_DIR" 2>/dev/null && \
+        echo "  Registered Codex marketplace: $MARKETPLACE_NAME → $TARGET_DIR" || \
+        echo "  [WARN] Failed to register Codex marketplace. Run manually: codex plugin marketplace add $TARGET_DIR"
+    fi
+
+    # Enable plugin
+    PLUGIN_KEY="dowithokr@$MARKETPLACE_NAME"
+    if grep -qF "[plugins.\"$PLUGIN_KEY\"]" "$HOME/.codex/config.toml" 2>/dev/null; then
+      echo "  Codex plugin '$PLUGIN_KEY' already enabled."
+    else
+      CODEX_CONFIG="$HOME/.codex/config.toml"
+      if [ -f "$CODEX_CONFIG" ]; then
+        printf '\n[plugins."%s"]\nenabled = true\n' "$PLUGIN_KEY" >> "$CODEX_CONFIG"
+        echo "  Enabled Codex plugin: $PLUGIN_KEY"
+      fi
+    fi
+  else
+    echo "  [INFO] Codex CLI not found. Skipping marketplace registration."
+    echo "         Install Codex, then run: codex plugin marketplace add $TARGET_DIR"
   fi
 fi
 
