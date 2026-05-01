@@ -2,6 +2,15 @@
 
 When the user's request matches a DoWithOKR skill, invoke it using the Skill tool as your FIRST action.
 
+If the current agent runtime does not expose a Skill tool, read the installed
+`SKILL.md` file first and follow it step by step. Common installed locations:
+
+- Claude Code: `.claude/commands/<skill-name>.md`
+- Codex CLI: `.agents/plugins/plugins/dowithokr/skills/<skill-name>/SKILL.md`
+
+When inspecting OKR state, include hidden paths: use `find .okr -type f` or
+`rg --hidden` so `.okr/active.md` and `.okr/status.md` are not skipped.
+
 | 触发关键词 | 技能 |
 | --- | --- |
 | "使用 DoWithOKR 运行" / "okr run" / "跑完整闭环" | /okr-run |
