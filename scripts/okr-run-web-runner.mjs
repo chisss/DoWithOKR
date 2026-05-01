@@ -58,11 +58,11 @@ export function buildRunnerCommand(runner, projectRoot, prompt) {
     };
   }
   if (runner === "claude") {
-    const args = ["-p", prompt, "--cwd", projectRoot];
+    const args = ["-p", prompt];
     return {
       command: "claude",
       args,
-      display: `claude -p ${JSON.stringify(prompt)} --cwd ${JSON.stringify(projectRoot)}`,
+      display: `cd ${JSON.stringify(projectRoot)} && claude -p ${JSON.stringify(prompt)}`,
     };
   }
   return { command: null, args: [], display: null };
@@ -116,22 +116,41 @@ function startPrompt(projectRoot, prompt, act, options = {}) {
     return { mode: runner, prompt, command: command.display };
   }
 
+  const webDir = path.join(projectRoot, ".okr", "web");
+  const runsDir = path.join(webDir, "runs");
+  fs.mkdirSync(runsDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const logRelativePath = path.join(".okr", "web", "runs", `${stamp}-${runner}.log`);
+  const logPath = path.join(projectRoot, logRelativePath);
+  fs.writeFileSync(logPath, `$ ${command.display}\n\n`, "utf8");
+  const logFd = fs.openSync(logPath, "a");
+
   const child = spawn(command.command, command.args, {
     cwd: projectRoot,
     env: { ...process.env, ...env },
     detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", logFd, logFd],
   });
   child.unref();
+
+  child.on("exit", (code, signal) => {
+    try { fs.closeSync(logFd); } catch {}
+    appendWebEvent(projectRoot, {
+      skill: "okr-run-web",
+      act,
+      status: code === 0 ? "completed" : "failed",
+      summary: `Runner: ${runner}; exit=${code}; signal=${signal || "none"}; log=${logRelativePath}`,
+    });
+  });
 
   appendWebEvent(projectRoot, {
     skill: "okr-run-web",
     act,
     status: "started",
-    summary: `Runner: ${runner}`,
+    summary: `Runner: ${runner}; log=${logRelativePath}`,
   });
 
-  return { mode: runner, prompt, command: command.display, pid: child.pid };
+  return { mode: runner, prompt, command: command.display, pid: child.pid, logPath: logRelativePath };
 }
 
 export function startRunnerPrompt(projectRoot, prompt, options = {}) {

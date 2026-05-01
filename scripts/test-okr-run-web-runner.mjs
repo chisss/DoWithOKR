@@ -51,6 +51,9 @@ assert.ok(codexResult.command.includes("codex"));
 const claudeResult = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, { runner: "claude", dryRun: true });
 assert.equal(claudeResult.mode, "claude");
 assert.ok(claudeResult.command.includes("claude"));
+const claudeCommand = buildRunnerCommand("claude", tmpRoot, rawPrompt);
+assert.deepEqual(claudeCommand.args, ["-p", rawPrompt]);
+assert.ok(!claudeCommand.args.includes("--cwd"), "Claude runner should rely on spawn cwd instead of unsupported --cwd");
 
 // runner 命令参数必须可结构化执行，避免只能展示不能运行
 const codexCommand = buildRunnerCommand("codex", tmpRoot, rawPrompt);
@@ -70,13 +73,20 @@ const spawned = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, 
 });
 assert.equal(spawned.mode, "codex");
 assert.ok(spawned.pid > 0);
+assert.ok(spawned.logPath.includes(".okr/web/runs/"));
 for (let i = 0; i < 10 && !fs.existsSync(marker); i++) {
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 assert.ok(fs.existsSync(marker), "runner process should be invoked");
+for (let i = 0; i < 10 && !fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8").includes("completed"); i++) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
 const spawnedArgs = fs.readFileSync(marker, "utf8");
 assert.ok(spawnedArgs.includes("exec"));
-assert.ok(fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8").includes("started"));
+const spawnedEvents = fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8");
+assert.ok(spawnedEvents.includes("started"));
+assert.ok(spawnedEvents.includes("completed"));
+assert.ok(fs.existsSync(path.join(tmpRoot, spawned.logPath)), "runner log should be written");
 
 // 清理
 fs.rmSync(tmpRoot, { recursive: true, force: true });
