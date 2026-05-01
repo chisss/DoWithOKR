@@ -3,3 +3,4 @@ MEMORY.md
 node_modules/
 .idea
 /docs
+.gstack/
