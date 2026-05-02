@@ -38,8 +38,8 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 2. 读取每个角色 KR 的状态和证据：
    - 从 `.okr/status.md` 获取状态和进展。
    - 从 `.okr/evidence/{KR-ID}.md` 获取证据清单。
-   - 验证证据文件格式是否符合 `references/evidence-spec.md` 规范。
-3. 验证证据有效性（参考 `references/evidence-spec.md` 验证规则）：
+   - 验证证据文件格式是否符合 `../../references/evidence-spec.md` 规范。
+3. 验证证据有效性（参考 `../../references/evidence-spec.md` 验证规则）：
    - 交叉比对证据与 KR 验收标准，判断证据是否充分覆盖验收要求。
    - 检查证据路径是否指向实际存在的文件（可疑证据降低可信度）。
    - 检查证据类型与角色职责是否匹配（如 BE 后端开发工程师应有代码和测试证据）。
@@ -59,13 +59,13 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 7. 计算 GM 最终 R：
    - GM 最终 R = 产品线 R × 40% + 技术线 R × 60%。
 8. 生成复盘结论和下一轮建议。
-9. 生成价值总结（参考 `references/score-review-template.md` 的价值总结区块）：
+9. 生成价值总结（参考 `../../references/score-review-template.md` 的价值总结区块）：
    - 回答：本次交付创造了什么业务/技术/用户价值？
    - 回答：团队的哪些能力得到了提升？（量化对比）
    - 回答：有哪些可复用的洞察？（有效实践 + 陷阱警示 + 流程改进）
    - 回答：下次应该在哪里投入更多？
 10. 写入评分记录（含价值总结）。
-11. 经验提炼（参考 `references/wisdom-spec.md`）：
+11. 经验提炼（参考 `../../references/wisdom-spec.md`）：
     - 分析本次评分结果：哪些 KR 得分高/低？原因是什么？
     - 提取可复用的经验：什么做法有效？什么是陷阱？
     - 为每个参与角色更新 wisdom 文件：
@@ -77,7 +77,7 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 
 ## 输出格式
 
-使用 `references/score-review-template.md`。
+使用 `../../references/score-review-template.md`。
 
 必须包含：
 
@@ -140,7 +140,7 @@ description: Score DoWithOKR outcomes through upper-level reviews, evidence-base
 - 更新 `.okr/status.md`：
   - 将已评分 KR 的进展字段更新为评分分数。
   - 更新 frontmatter：`last_updated`、`updated_by: okr-review-score`。
-- 创建或更新 `.okr/wisdom/{role}.md`（参考 `references/wisdom-spec.md`）：
+- 创建或更新 `.okr/wisdom/{role}.md`（参考 `../../references/wisdom-spec.md`）：
   - 为每个参与角色写入经验提炼结果。
   - 更新 frontmatter 的 `updated` 和 `cycles_completed`。
 - 创建或更新 `.okr/wisdom/team.md`：

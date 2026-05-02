@@ -39,12 +39,12 @@ description: Build a DoWithOKR role tree from GM OKR, including hierarchy, respo
 4. 为每个裁剪掉的角色说明：
    - 裁剪原因：为什么本次不需要。
    - 风险：裁剪后哪些能力缺失，由谁承担。
-5. 按 `references/role-tree-template.md` 格式组织输出。
+5. 按 `../../references/role-tree-template.md` 格式组织输出。
 6. 写入 `.okr/active.md` 的 `## 角色树` 区块。
 
 ## 输出格式
 
-使用 `references/role-tree-template.md`，并展示角色树、上下级关系、角色职责、参与原因、裁剪说明。
+使用 `../../references/role-tree-template.md`，并展示角色树、上下级关系、角色职责、参与原因、裁剪说明。
 
 必须包含：
 

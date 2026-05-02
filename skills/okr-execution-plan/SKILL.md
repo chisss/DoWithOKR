@@ -46,7 +46,7 @@ description: Create a delivery verification plan with acceptance criteria, verif
    - 描述如何证明达标（运行什么命令、检查什么文件、对比什么数据）。
    - 示例：验证方法"运行 `mvn test` + 查看 jacoco 报告"。
 4. 为每个验收标准定义证据类型：
-   - 从 `references/evidence-spec.md` 的证据类型枚举中选择。
+   - 从 `../../references/evidence-spec.md` 的证据类型枚举中选择。
    - 标注需要提供的具体证据（如 commit hash、测试报告截图、API 响应日志）。
 5. 检查覆盖完整性：
    - 每个角色 KR 至少有一组验收标准。
@@ -76,7 +76,7 @@ description: Create a delivery verification plan with acceptance criteria, verif
 
 - KR 质量指标模糊无法提取验收标准：标记为"KR 定义不足"，建议回退到 `okr-planner` 修正 KR。
 - 某个角色所有 KR 均无量化指标：阻塞该角色的验证计划生成，提示补充量化指标。
-- 验收标准与证据类型不匹配（如要求截图但角色是 BE）：参考 `references/evidence-spec.md` 的角色-证据匹配表调整。
+- 验收标准与证据类型不匹配（如要求截图但角色是 BE）：参考 `../../references/evidence-spec.md` 的角色-证据匹配表调整。
 
 ## 产出写入
 

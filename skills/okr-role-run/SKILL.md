@@ -75,7 +75,7 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
 - 用于执行某个角色或某个角色 KR。
 - 执行前必须展示上级映射，例如 BE-KR1 -> ARCHD-KR1 -> GM-KR1。
 - 执行中只处理该角色职责范围内的内容。
-- 执行中面临技术选型、范围判断、质量取舍、时间权衡等决策时，必须回答："此决策对应 KR: {KR-ID}，服务于验收标准: {具体标准}"。如果无法回答，属于范围蔓延，应停止并输出偏离说明（参考 `references/decision-anchor-spec.md`）。
+- 执行中面临技术选型、范围判断、质量取舍、时间权衡等决策时，必须回答："此决策对应 KR: {KR-ID}，服务于验收标准: {具体标准}"。如果无法回答，属于范围蔓延，应停止并输出偏离说明（参考 `../../references/decision-anchor-spec.md`）。
 - 执行过程中持续进行偏离检测：范围蔓延 → 停止重新规划；越界操作 → 标记阻塞交由对应角色；时间超限 → 评估最小可行交付。
 - 跳过上游角色时，提示风险但不强制阻止。
 - 完成后必须更新状态：未开始、进行中、阻塞、已完成、放弃。
@@ -109,8 +109,8 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
      - TW 文档专家/DX：输出 README、示例、安装和故障排查文档。
      - 其他角色（DevOps、SEC）：按其职责定义执行。
    - 角色有权选择自己认为最优的技术方案、实现路径和工具链。
-   - 角色自主决定实现路径，但每个关键决策必须锚定 KR 验收标准（参考 `references/decision-anchor-spec.md`）。决策锚点格式："选择 {方案}，因为它有利于达成 {KR-ID} 的 {验收标准}"。
-   - 角色在执行过程中可调用外部技能辅助完成 KR（参考 `references/skill-invocation-spec.md`）。调用前必须通过三问检查（目的、证据、职责），调用时携带 OKR 上下文，调用后将产出记录为证据。调用范围须符合角色-技能权限矩阵。
+   - 角色自主决定实现路径，但每个关键决策必须锚定 KR 验收标准（参考 `../../references/decision-anchor-spec.md`）。决策锚点格式："选择 {方案}，因为它有利于达成 {KR-ID} 的 {验收标准}"。
+   - 角色在执行过程中可调用外部技能辅助完成 KR（参考 `../../references/skill-invocation-spec.md`）。调用前必须通过三问检查（目的、证据、职责），调用时携带 OKR 上下文，调用后将产出记录为证据。调用范围须符合角色-技能权限矩阵。
 5. 交付自检：
    - 执行完成后，角色按验收标准逐条自检（如有交付验证计划）。
    - 输出标准化自检报告表格：
@@ -128,13 +128,13 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
      - 存在 ⚠️ 但无 ❌ → 状态保持"进行中"，标注差距和补救计划。
      - 存在 ❌ → 状态改为"阻塞"，说明阻塞原因和建议。
    - 无交付验证计划时，按 KR 的质量指标进行基础自检，同样使用上述表格格式。
-6. 收集执行证据（参考 `references/evidence-spec.md`）：
+6. 收集执行证据（参考 `../../references/evidence-spec.md`）：
    - 扫描 `git diff --name-only` 获取本次执行新增或修改的文件列表，记录为 `文件` 类型证据。
    - 如果执行过程中产生了 git commit，记录 commit hash 为 `commit` 类型证据。
    - 如果执行了测试命令，捕获测试通过/失败结果，记录为 `测试` 类型证据。
    - PD、PM、TW 等角色产出的文档，记录为 `文档` 类型证据。
    - FE 前端角色产出的 UI 截图，记录为 `截图` 类型证据。
-   - 如果执行过程中调用了外部技能（参考 `references/skill-invocation-spec.md`），将外部技能的关键产出记录为对应类型的证据。
+   - 如果执行过程中调用了外部技能（参考 `../../references/skill-invocation-spec.md`），将外部技能的关键产出记录为对应类型的证据。
 6. 写入证据文件 `.okr/evidence/{KR-ID}.md`：
    - 文件不存在 → 创建，写入标题 `# {KR-ID} 证据` 和表头 `| 类型 | 路径/引用 | 说明 | 时间 |`。
    - 文件已存在 → 追加新证据行，不覆盖历史条目。
@@ -165,14 +165,14 @@ description: Execute a specified DoWithOKR role or role KR while preserving uppe
 - 目标 KR 已标记为"已完成"：提示用户该 KR 已完成，询问是否重新执行。
 - 目标 KR 状态为"阻塞"：展示阻塞原因，建议先解决阻塞再执行。
 - 执行过程中发现需求超出角色职责：停止执行，提示该部分应由其他角色负责。
-- 偏离检测触发：输出偏离警告（格式参考 `references/decision-anchor-spec.md`），按偏离类型执行对应处理规则（范围蔓延 → 停止重新规划；越界操作 → 标记阻塞；时间超限 → 评估降级）。
+- 偏离检测触发：输出偏离警告（格式参考 `../../references/decision-anchor-spec.md`），按偏离类型执行对应处理规则（范围蔓延 → 停止重新规划；越界操作 → 标记阻塞；时间超限 → 评估降级）。
 
 ## 产出写入
 
 - 更新 `.okr/status.md`：
   - 修改目标 KR 行的状态、进展、证据和下一步字段。
   - 更新 frontmatter：`last_updated`、`updated_by: okr-role-run`。
-- 写入 `.okr/evidence/{KR-ID}.md`（格式参考 `references/evidence-spec.md`）：
+- 写入 `.okr/evidence/{KR-ID}.md`（格式参考 `../../references/evidence-spec.md`）：
   - 文件不存在 → 创建，写入 `# {KR-ID} 证据` 标题和 `| 类型 | 路径/引用 | 说明 | 时间 |` 表头。
   - 文件已存在 → 在表格末尾追加新证据行，保留历史条目。
   - 证据类型必须使用枚举值：`文件`、`commit`、`测试`、`截图`、`日志`、`文档`。

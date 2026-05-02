@@ -49,7 +49,7 @@ description: Show and update the DoWithOKR status board with KR state, progress,
 
 ## 输出格式
 
-使用 `references/status-board-template.md`。
+使用 `../../references/status-board-template.md`。
 
 必须包含：
 

@@ -122,13 +122,14 @@ for (const skill of skills) {
     addError(skill, `${file} too thin: ${lines} lines (minimum 50)`);
   }
 
-  // 2e. 模板引用校验：检查引用的 references/*.md 文件是否存在
-  const refPattern = /references\/[\w-]+\.md/g;
+  // 2e. 模板引用校验：按 SKILL.md 所在目录解析相对路径，避免安装后找错模板
+  const refPattern = /(?:\.\.\/\.\.\/)?references\/[\w-]+\.md/g;
   let refMatch;
   while ((refMatch = refPattern.exec(content)) !== null) {
     const refPath = refMatch[0];
-    if (!fs.existsSync(path.join(root, refPath))) {
-      addError(skill, `${file} references '${refPath}' but file does not exist`);
+    const resolvedRefPath = path.resolve(root, "skills", skill, refPath);
+    if (!fs.existsSync(resolvedRefPath)) {
+      addError(skill, `${file} references '${refPath}' but file does not exist relative to ${path.dirname(file)}`);
     }
   }
 

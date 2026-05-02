@@ -55,16 +55,16 @@ description: Convert user or client needs into GM OKR, scope, acceptance criteri
    - 每个 KR 必须指定证据类型（接口、页面、测试记录、文档等）。
    - 初始状态统一为"未开始"。
 6. KR 质量自检：
-   - 按 `references/gm-okr-template.md` 中的"KR 反模式检测规则"逐条检测。
+   - 按 `../../references/gm-okr-template.md` 中的"KR 反模式检测规则"逐条检测。
    - 命中反模式的 KR 自动给出修正建议并重写，拒绝纯动作描述的 KR 进入下一阶段。
    - 所有 KR 必须通过"KR 质量检查清单"（含 Deliverable 维度）。
-7. 按 `references/gm-okr-template.md` 格式组织输出。
+7. 按 `../../references/gm-okr-template.md` 格式组织输出。
 8. 写入 `.okr/active.md`。
 9. 向用户展示完整 GM OKR，请求确认后再继续后续技能。
 
 ## 输出格式
 
-使用 `references/gm-okr-template.md`，并展示 GM OKR、边界、待确认问题。KR 表格必须使用六列格式：`| KR ID | 时间节点 | 交付物 | 质量指标 | 证据要求 | 状态 |`。
+使用 `../../references/gm-okr-template.md`，并展示 GM OKR、边界、待确认问题。KR 表格必须使用六列格式：`| KR ID | 时间节点 | 交付物 | 质量指标 | 证据要求 | 状态 |`。
 
 必须包含：
 
