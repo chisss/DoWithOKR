@@ -174,6 +174,21 @@ cd DoWithOKR
 
 Installation is idempotent — running it again skips already-installed content.
 
+### Ask AI to Install It
+
+Send this prompt to Claude Code or Codex, and replace `/path/to/your/project` with your target project path:
+
+```text
+Please install DoWithOKR into the project `/path/to/your/project`.
+
+Requirements:
+1. If DoWithOKR is not already available on this machine, clone https://github.com/chisss/DoWithOKR.git first.
+2. Enter the DoWithOKR directory and run `./install.sh /path/to/your/project`.
+3. After installation, verify Claude Code commands, the Codex marketplace, DoWithOKR routing rules, and the `.okr/` state directory.
+4. Do not modify the target project's business code, dependencies, configuration, or build files.
+5. Finish with a short report covering the installation result, key file locations, and how to run `/okr-run` next.
+```
+
 ### Uninstall
 
 ```bash

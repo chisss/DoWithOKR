@@ -171,6 +171,21 @@ cd DoWithOKR
 
 安装是幂等的——重复运行会跳过已安装的内容。
 
+### 让 AI 帮你安装
+
+把下面提示词发给 Claude Code 或 Codex，并把 `/path/to/your/project` 替换成你的目标项目路径：
+
+```text
+请帮我把 DoWithOKR 安装到项目 `/path/to/your/project`。
+
+要求：
+1. 如果本机还没有 DoWithOKR，请先克隆 https://github.com/chisss/DoWithOKR.git。
+2. 进入 DoWithOKR 目录，执行 `./install.sh /path/to/your/project`。
+3. 安装完成后，验证 Claude Code 命令、Codex marketplace、DoWithOKR 路由规则和 `.okr/` 状态目录是否就绪。
+4. 不要修改目标项目的业务代码、依赖、配置或构建文件。
+5. 最后用简短报告告诉我安装结果、关键文件位置和后续如何运行 `/okr-run`。
+```
+
 ### 卸载
 
 ```bash
