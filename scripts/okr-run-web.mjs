@@ -274,6 +274,12 @@ export function createServer(options = {}) {
       return;
     }
 
+    if (pathname === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     // 静态文件服务
     let filePath;
     if (pathname === "/" || pathname === "/index.html") {

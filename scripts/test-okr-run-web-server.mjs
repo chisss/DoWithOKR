@@ -185,6 +185,9 @@ async function runTests() {
     assert.equal(htmlRes.status, 200);
     assert.ok(htmlRes.body.includes("DoWithOKR"), "HTML should contain DoWithOKR");
 
+    const faviconRes = await fetch(`${base}/favicon.ico`);
+    assert.equal(faviconRes.status, 204, "favicon should not create browser console 404 noise");
+
     console.log("All server tests passed");
   } finally {
     await close();

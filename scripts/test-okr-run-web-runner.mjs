@@ -51,8 +51,9 @@ assert.ok(codexResult.command.includes("codex"));
 const claudeResult = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, { runner: "claude", dryRun: true });
 assert.equal(claudeResult.mode, "claude");
 assert.ok(claudeResult.command.includes("claude"));
+assert.ok(claudeResult.command.includes("--permission-mode acceptEdits"));
 const claudeCommand = buildRunnerCommand("claude", tmpRoot, rawPrompt);
-assert.deepEqual(claudeCommand.args, ["-p", rawPrompt]);
+assert.deepEqual(claudeCommand.args, ["-p", "--permission-mode", "acceptEdits", rawPrompt]);
 assert.ok(!claudeCommand.args.includes("--cwd"), "Claude runner should rely on spawn cwd instead of unsupported --cwd");
 
 // runner 命令参数必须可结构化执行，避免只能展示不能运行
@@ -66,7 +67,9 @@ const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-bin-"));
 const marker = path.join(tmpRoot, "runner-called.json");
 fs.writeFileSync(path.join(fakeBin, "codex"), [
   "#!/bin/sh",
-  `printf '%s\\n' "$@" > ${JSON.stringify(marker)}`
+  `printf '%s\\n' "$@" > ${JSON.stringify(marker)}`,
+  `mkdir -p ${JSON.stringify(path.join(tmpRoot, ".okr"))}`,
+  `printf '%s\\n' 'ok' > ${JSON.stringify(path.join(tmpRoot, ".okr", "active.md"))}`
 ].join("\n"), { mode: 0o755 });
 const spawned = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, {
   env: { PATH: fakeBin },
@@ -88,8 +91,55 @@ assert.ok(spawnedEvents.includes("started"));
 assert.ok(spawnedEvents.includes("completed"));
 assert.ok(fs.existsSync(path.join(tmpRoot, spawned.logPath)), "runner log should be written");
 
+// Claude 命令行自身包含 --permission-mode 时不应被误判为权限失败
+fs.rmSync(path.join(tmpRoot, ".okr", "active.md"), { force: true });
+const claudeBin = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-claude-bin-"));
+fs.writeFileSync(path.join(claudeBin, "claude"), [
+  "#!/bin/sh",
+  `mkdir -p ${JSON.stringify(path.join(tmpRoot, ".okr"))}`,
+  `printf '%s\\n' 'ok' > ${JSON.stringify(path.join(tmpRoot, ".okr", "active.md"))}`,
+  "printf '%s\\n' 'completed without prompt'"
+].join("\n"), { mode: 0o755 });
+const claudeSpawn = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, {
+  env: { PATH: claudeBin },
+  runner: "claude",
+});
+assert.equal(claudeSpawn.mode, "claude");
+for (let i = 0; i < 10 && !fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8").includes(claudeSpawn.logPath); i++) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+for (let i = 0; i < 10; i++) {
+  const content = fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8");
+  const related = content.split("\n").filter((line) => line.includes(claudeSpawn.logPath));
+  if (related.some((line) => line.includes('"status":"completed"'))) break;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+const claudeEvents = fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8");
+assert.ok(claudeEvents.split("\n").some((line) => line.includes(claudeSpawn.logPath) && line.includes('"status":"completed"')));
+
+// runner 退出但没有写入 OKR 状态时应标记失败，避免 Web 误报完成
+fs.rmSync(path.join(tmpRoot, ".okr", "active.md"), { force: true });
+const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), "okr-web-empty-bin-"));
+fs.writeFileSync(path.join(emptyBin, "claude"), [
+  "#!/bin/sh",
+  "printf '%s\\n' '需要你授权写入 .okr 目录'"
+].join("\n"), { mode: 0o755 });
+const failedSpawn = startOkrRun(tmpRoot, { mode: "raw", requirement: "做登录" }, {
+  env: { PATH: emptyBin },
+  runner: "claude",
+});
+assert.equal(failedSpawn.mode, "claude");
+for (let i = 0; i < 10 && !fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8").includes("no OKR state confirmed"); i++) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+const failedEvents = fs.readFileSync(path.join(tmpRoot, ".okr", "web", "events.jsonl"), "utf8");
+assert.ok(failedEvents.includes('"status":"failed"'));
+assert.ok(failedEvents.includes("no OKR state confirmed"));
+
 // 清理
 fs.rmSync(tmpRoot, { recursive: true, force: true });
 fs.rmSync(fakeBin, { recursive: true, force: true });
+fs.rmSync(claudeBin, { recursive: true, force: true });
+fs.rmSync(emptyBin, { recursive: true, force: true });
 
 console.log("All runner tests passed");

@@ -58,11 +58,11 @@ export function buildRunnerCommand(runner, projectRoot, prompt) {
     };
   }
   if (runner === "claude") {
-    const args = ["-p", prompt];
+    const args = ["-p", "--permission-mode", "acceptEdits", prompt];
     return {
       command: "claude",
       args,
-      display: `cd ${JSON.stringify(projectRoot)} && claude -p ${JSON.stringify(prompt)}`,
+      display: `cd ${JSON.stringify(projectRoot)} && claude -p --permission-mode acceptEdits ${JSON.stringify(prompt)}`,
     };
   }
   return { command: null, args: [], display: null };
@@ -124,6 +124,8 @@ function startPrompt(projectRoot, prompt, act, options = {}) {
   const logPath = path.join(projectRoot, logRelativePath);
   fs.writeFileSync(logPath, `$ ${command.display}\n\n`, "utf8");
   const logFd = fs.openSync(logPath, "a");
+  const hadOkrState = fs.existsSync(path.join(projectRoot, ".okr", "active.md"))
+    || fs.existsSync(path.join(projectRoot, ".okr", "status.md"));
 
   const child = spawn(command.command, command.args, {
     cwd: projectRoot,
@@ -135,11 +137,19 @@ function startPrompt(projectRoot, prompt, act, options = {}) {
 
   child.on("exit", (code, signal) => {
     try { fs.closeSync(logFd); } catch {}
+    const hasOkrState = fs.existsSync(path.join(projectRoot, ".okr", "active.md"))
+      || fs.existsSync(path.join(projectRoot, ".okr", "status.md"));
+    let permissionBlocked = false;
+    try {
+      const logText = fs.readFileSync(logPath, "utf8").slice(-4000);
+      permissionBlocked = /需要.*授权|授权.*写入|permission denied|requires permission|allow.*write/i.test(logText);
+    } catch {}
+    const completed = code === 0 && !permissionBlocked && (hadOkrState || hasOkrState);
     appendWebEvent(projectRoot, {
       skill: "okr-run-web",
       act,
-      status: code === 0 ? "completed" : "failed",
-      summary: `Runner: ${runner}; exit=${code}; signal=${signal || "none"}; log=${logRelativePath}`,
+      status: completed ? "completed" : "failed",
+      summary: `Runner: ${runner}; exit=${code}; signal=${signal || "none"}; log=${logRelativePath}${completed ? "" : "; no OKR state confirmed"}`,
     });
   });
 

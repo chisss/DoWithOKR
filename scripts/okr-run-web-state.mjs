@@ -201,7 +201,9 @@ function readMarkdownItems(dir, parseWarnings, label) {
 
 function extractFinalResult(reviewItems) {
   for (const item of [...reviewItems].reverse()) {
-    const line = item.content.split("\n").find((l) => /GM\s*最终\s*R[：:]/.test(l));
+    const line = item.content
+      .split("\n")
+      .find((l) => /(?:GM\s*)?最终\s*R\s*[：:]/.test(l.replace(/[*_`]/g, "")));
     if (line) return line.trim();
     const summary = extractSection(item.content, "汇总");
     if (summary) return summary;

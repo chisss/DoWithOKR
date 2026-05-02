@@ -117,6 +117,10 @@ assert.ok(richState.evidenceItems[0].content.includes("tests/login.spec.ts"));
 assert.equal(richState.reviewItems[0].name, "2026-05-01.md");
 assert.ok(richState.finalResult.includes("GM 最终 R：0.82"));
 
+fs.writeFileSync(path.join(root, ".okr", "reviews", "2026-05-02.md"), "## 总体评价\n\n**最终 R: 0.975**", "utf8");
+const boldFinalState = readOkrState(root);
+assert.ok(boldFinalState.finalResult.includes("最终 R: 0.975"));
+
 // --- extractSection 测试 ---
 const md = "## 甲方需求\n做登录\n## GM OKR\nO-GM：目标\n## 角色树\nGM";
 assert.ok(extractSection(md, "甲方需求").includes("做登录"));
